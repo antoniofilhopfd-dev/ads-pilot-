@@ -1,6 +1,6 @@
 export class AppError extends Error {
   constructor(
-    public code: "validation" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "rate_limited",
+    public code: "validation" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "rate_limited" | "unavailable",
     message: string,
   ) {
     super(message);
