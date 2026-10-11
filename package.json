@@ -10,7 +10,12 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file=.env scripts/migrate.ts",
     "test": "vitest run",
-    "sync": "tsx --env-file=.env scripts/sync-all.ts"
+    "sync": "tsx --env-file=.env scripts/sync-all.ts",
+    "backup": "bash scripts/backup.sh",
+    "test:backup": "bash scripts/backup-restore-test.sh",
+    "bench": "tsx --env-file=.env scripts/bench.ts",
+    "e2e": "for s in e2e e2e-conta e2e-meta e2e-ops e2e-reports e2e-mcp e2e-security; do tsx --env-file=.env scripts/$s.ts || exit 1; done",
+    "a11y": "tsx scripts/a11y.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
