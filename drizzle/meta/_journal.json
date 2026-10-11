@@ -15,6 +15,13 @@
       "when": 1791729271616,
       "tag": "0001_great_nomad",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1791730813050,
+      "tag": "0002_old_elektra",
+      "breakpoints": true
     }
   ]
 }

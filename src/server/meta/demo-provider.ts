@@ -1,4 +1,7 @@
-import { MetaApiError, type MetaProvider, type RemoteAd, type RemoteAdAccount, type RemoteAdSet, type RemoteCampaign, type RemoteInsight } from "./types";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { demoRemoteState } from "@/db/schema";
+import { MetaApiError, type CampaignPatch, type CampaignRemoteState, type MetaWriter, type MetaProvider, type RemoteAd, type RemoteAdAccount, type RemoteAdSet, type RemoteCampaign, type RemoteInsight } from "./types";
 
 // DADOS SIMULADOS — determinísticos, só para demonstração e testes. Nunca vêm da Meta.
 // Inclui casos reais de borda: campanha sem resultado informado, anúncio reprovado, campanha pausada, sem ROAS.
@@ -30,8 +33,41 @@ function* days(since: string, until: string) {
   for (let d = new Date(since + "T00:00:00Z"); d <= new Date(until + "T00:00:00Z"); d = new Date(d.getTime() + 86_400_000)) yield d.toISOString().slice(0, 10);
 }
 
-export class DemoProvider implements MetaProvider {
+export class DemoProvider implements MetaProvider, MetaWriter {
   readonly mode = "demo" as const;
+  // organizationId habilita o "estado remoto" simulado (mudanças feitas pelas operações). Sem ele, só o estado base.
+  constructor(private organizationId?: string) {}
+
+  private async overrides(acct: string) {
+    if (!this.organizationId) return new Map<string, { status: string | null; dailyBudget: number | null }>();
+    const rows = await db.select().from(demoRemoteState).where(and(eq(demoRemoteState.organizationId, this.organizationId), eq(demoRemoteState.accountExternalId, acct)));
+    return new Map(rows.map((r) => [r.campaignExternalId, { status: r.status, dailyBudget: r.dailyBudget === null ? null : Number(r.dailyBudget) }]));
+  }
+
+  private applyOverride<T extends { status: string | null; effectiveStatus: string | null; dailyBudget: number | null }>(c: T, o?: { status: string | null; dailyBudget: number | null }): T {
+    if (!o) return c;
+    const status = o.status ?? c.status;
+    const wasPaused = c.effectiveStatus === "PAUSED" || c.effectiveStatus === "CAMPAIGN_PAUSED";
+    const effectiveStatus = status === "PAUSED" ? "PAUSED" : wasPaused ? "ACTIVE" : c.effectiveStatus;
+    return { ...c, status, effectiveStatus, dailyBudget: o.dailyBudget ?? c.dailyBudget };
+  }
+
+  async getCampaignState(acct: string, camp: string): Promise<CampaignRemoteState> {
+    const base = this.camps(acct).find((c) => c.externalId === camp);
+    if (!base) throw new MetaApiError("permission", "Campanha não encontrada ou sem acesso (demo).", 100);
+    const c = this.applyOverride({ status: base.status, effectiveStatus: base.effectiveStatus, dailyBudget: base.dailyBudget }, (await this.overrides(acct)).get(camp));
+    return c;
+  }
+
+  async updateCampaign(acct: string, camp: string, patch: CampaignPatch): Promise<void> {
+    if (!this.organizationId) throw new MetaApiError("unknown", "Ambiente demo sem organização.");
+    const cur = await this.getCampaignState(acct, camp);
+    const status = patch.status ?? cur.status;
+    const dailyBudget = patch.dailyBudget ?? cur.dailyBudget;
+    await db.insert(demoRemoteState).values({ organizationId: this.organizationId, accountExternalId: acct, campaignExternalId: camp, status, dailyBudget: dailyBudget === null ? null : dailyBudget.toFixed(2) })
+      .onDuplicateKeyUpdate({ set: { status, dailyBudget: dailyBudget === null ? null : dailyBudget.toFixed(2) } });
+  }
+
   async listAdAccounts() { return ACCOUNTS; }
   private camps(acct: string) {
     const c = CAMPAIGNS[acct];
@@ -39,7 +75,8 @@ export class DemoProvider implements MetaProvider {
     return c;
   }
   async listCampaigns(acct: string): Promise<RemoteCampaign[]> {
-    return this.camps(acct).map(({ base, cpr, ctr, roas, ...c }) => c);
+    const ov = await this.overrides(acct);
+    return this.camps(acct).map(({ base, cpr, ctr, roas, ...c }) => this.applyOverride(c, ov.get(c.externalId)));
   }
   async listAdSets(acct: string): Promise<RemoteAdSet[]> {
     return this.camps(acct).flatMap((c) => [

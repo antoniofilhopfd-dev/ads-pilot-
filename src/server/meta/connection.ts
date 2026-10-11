@@ -20,7 +20,7 @@ export async function getConnection(actor: Actor) {
 
 // O token só é descriptografado aqui, no servidor, no momento do uso.
 export function providerFor(conn: typeof metaConnections.$inferSelect): MetaProvider {
-  if (conn.mode === "demo") return new DemoProvider();
+  if (conn.mode === "demo") return new DemoProvider(conn.organizationId);
   if (!conn.tokenEnc) throw new AppError("conflict", "Conexão sem token. Reconecte a Meta.");
   return new GraphApiProvider(decryptSecret(conn.tokenEnc));
 }

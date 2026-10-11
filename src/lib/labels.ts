@@ -20,3 +20,10 @@ export const OBJECTIVE_LABEL: Record<string, string> = {
 export const objectiveLabel = (o: string | null) => (o ? OBJECTIVE_LABEL[o] ?? o : "—");
 
 export const RESULT_LABEL: Record<string, string> = { purchase: "compras", lead: "cadastros", link_click: "cliques no link", post_engagement: "engajamentos" };
+
+export const OP_LABEL = { pause: "Pausar", activate: "Reativar", set_daily_budget: "Alterar orçamento diário" } as const;
+export const OPSTATUS = {
+  prepared: ["neutral", "Aguardando confirmação"], executing: ["warn", "Em execução"], succeeded: ["ok", "Concluída e verificada"],
+  failed: ["danger", "Falhou"], ambiguous: ["warn", "Resultado incerto"], expired: ["neutral", "Expirada"], cancelled: ["neutral", "Cancelada"],
+} as const;
+

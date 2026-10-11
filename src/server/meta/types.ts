@@ -39,3 +39,14 @@ export class MetaApiError extends Error {
     return this.kind === "rate_limit" || this.kind === "transient";
   }
 }
+
+// ── Escrita (Etapa 04). Só o provedor de DEMONSTRAÇÃO implementa; a Graph API real NÃO tem escrita habilitada. ──
+export type CampaignRemoteState = { status: string | null; effectiveStatus: string | null; dailyBudget: number | null };
+export type CampaignPatch = { status?: "ACTIVE" | "PAUSED"; dailyBudget?: number };
+
+export interface MetaWriter {
+  getCampaignState(accountExternalId: string, campaignExternalId: string): Promise<CampaignRemoteState>;
+  updateCampaign(accountExternalId: string, campaignExternalId: string, patch: CampaignPatch): Promise<void>;
+}
+
+export const isWriter = (p: MetaProvider): p is MetaProvider & MetaWriter => typeof (p as Partial<MetaWriter>).updateCampaign === "function";

@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LineChart } from "@/components/charts";
 import { DemoBanner, SyncBadge } from "@/components/data-status";
-import { Badge, Card, PageHeader, Td, Th } from "@/components/ui";
+import { Form } from "@/components/form";
+import { Alert, Badge, Card, Field, PageHeader, Td, Th } from "@/components/ui";
+import { can } from "@/server/permissions";
+import { prepareOperationAction } from "../../../actions";
 import { AppError } from "@/lib/errors";
 import { objectiveLabel, statusInfo } from "@/lib/labels";
 import { brl, brl0, int, pct, ratio } from "@/lib/metrics";
@@ -31,6 +34,29 @@ export default async function Detalhe({ params, searchParams }: { params: Promis
       <PageHeader title={c.name} subtitle={`${d.accountName} · ${objectiveLabel(c.objective)}`} action={<SyncBadge lastSyncedAt={d.lastSyncedAt} stale={stale} hasConnection />} />
       <p className="-mt-3 mb-4 text-sm"><Link className="text-brand underline" href={`/app/campanhas?${back}`}>← Campanhas</Link> <span className="ml-2"><Badge tone={s.tone}>{s.label}</Badge></span></p>
       {conn?.mode === "demo" && <DemoBanner />}
+      {can(actor.role, "campaigns.write") && (
+        <Card className="mb-4">
+          <h2 className="mb-2 text-sm font-semibold">Ações</h2>
+          {conn?.mode !== "demo" ? (
+            <Alert tone="info">Alterar campanhas na Meta real ainda não está habilitado (exige a permissão ads_management e validação com conta de teste).</Alert>
+          ) : (
+            <div className="flex flex-wrap items-end gap-6">
+              {(c.status === "ACTIVE" || c.status === "PAUSED") && (
+                <Form action={prepareOperationAction} submit={c.status === "ACTIVE" ? "Pausar campanha…" : "Reativar campanha…"} variant="secondary" className="inline">
+                  <input type="hidden" name="campaignId" value={c.id} /><input type="hidden" name="type" value={c.status === "ACTIVE" ? "pause" : "activate"} />
+                </Form>
+              )}
+              {c.dailyBudget !== null && (
+                <Form action={prepareOperationAction} submit="Alterar orçamento…" variant="secondary" className="flex items-end gap-2">
+                  <input type="hidden" name="campaignId" value={c.id} /><input type="hidden" name="type" value="set_daily_budget" />
+                  <Field label="Novo orçamento diário (R$)" name="dailyBudget" id="new-budget" />
+                </Form>
+              )}
+              <p className="basis-full text-xs text-muted">Toda ação passa por uma tela de confirmação (atual × novo) e é verificada depois. Ambiente de demonstração: nada é alterado na Meta.</p>
+            </div>
+          )}
+        </Card>
+      )}
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[["Gasto (Meta)", brl(t.spend, cur)], ["Resultados", int(t.results)], ["Custo por resultado", brl(t.costPerResult, cur)], ["CTR", pct(t.ctr)], ["ROAS", ratio(t.roas)]].map(([l, v]) => (
           <Card key={l}><p className="text-xs text-muted">{l}</p><p className="num mt-1 text-2xl font-semibold">{v}</p></Card>

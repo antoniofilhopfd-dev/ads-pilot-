@@ -217,3 +217,41 @@ export async function deleteAccountAction(_: ActionResult, f: FormData): Promise
   if (r?.error) return r;
   redirect("/login");
 }
+
+// ───────────── Etapa 04: operações de campanha ─────────────
+import { cancelOperation, executeOperation, prepareOperation, reconcileOperation } from "@/server/meta/operations";
+
+export async function prepareOperationAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  let opId: string | undefined;
+  const r = await run(async () => {
+    const { actor } = await requireActor();
+    const raw = str(f, "dailyBudget").trim().replace(/\./g, "").replace(",", ".");
+    const prep = await prepareOperation(actor, { campaignId: str(f, "campaignId"), type: str(f, "type"), ...(raw ? { dailyBudget: Number(raw) } : {}) });
+    opId = prep.operationId;
+  });
+  if (r?.error) return r;
+  redirect(`/app/operacoes/${opId}`);
+}
+
+export async function executeOperationAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await executeOperation(actor, str(f, "operationId"), { acknowledgeLargeChange: f.get("ack") === "on" });
+    revalidatePath("/app", "layout");
+  });
+}
+
+export async function reconcileOperationAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await reconcileOperation(actor, str(f, "operationId"));
+    revalidatePath("/app", "layout");
+  });
+}
+
+export async function cancelOperationAction(f: FormData) {
+  const { actor } = await requireActor();
+  const campaignId = str(f, "campaignId");
+  await run(async () => cancelOperation(actor, str(f, "operationId")));
+  redirect(`/app/campanhas/${campaignId}`);
+}

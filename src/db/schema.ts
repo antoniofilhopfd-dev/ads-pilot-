@@ -258,3 +258,47 @@ export const syncRuns = mysqlTable(
   },
   (t) => [uniqueIndex("sync_runs_lock_uq").on(t.lockKey), index("sync_runs_acct_idx").on(t.adAccountId, t.startedAt)],
 );
+
+// ───────────── Etapa 04: operações de campanha ─────────────
+
+// Estado "remoto" do ambiente de DEMONSTRAÇÃO (simula a Meta). Não existe para conexões reais.
+export const demoRemoteState = mysqlTable(
+  "demo_remote_state",
+  {
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    accountExternalId: varchar("account_external_id", { length: 40 }).notNull(),
+    campaignExternalId: varchar("campaign_external_id", { length: 40 }).notNull(),
+    status: varchar("status", { length: 30 }),
+    dailyBudget: decimal("daily_budget", { precision: 14, scale: 2 }),
+  },
+  (t) => [primaryKey({ name: "demo_state_pk", columns: [t.organizationId, t.accountExternalId, t.campaignExternalId] })],
+);
+
+export const OP_TYPES = ["pause", "activate", "set_daily_budget"] as const;
+export const OP_STATUS = ["prepared", "executing", "succeeded", "failed", "ambiguous", "expired", "cancelled"] as const;
+
+export const operations = mysqlTable(
+  "operations",
+  {
+    id: id(), // também é o identificador de idempotência da operação
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    adAccountId: varchar("ad_account_id", { length: 36 }).notNull().references(() => adAccounts.id, { onDelete: "cascade" }),
+    campaignId: varchar("campaign_id", { length: 36 }).notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+    clientId: varchar("client_id", { length: 36 }),
+    type: mysqlEnum("type", OP_TYPES).notNull(),
+    mode: mysqlEnum("mode", CONNECTION_MODES).notNull(),
+    params: json("params").$type<{ dailyBudget?: number; acknowledgedLargeChange?: boolean }>().notNull(),
+    before: json("before").$type<{ status: string | null; effectiveStatus: string | null; dailyBudget: number | null }>().notNull(),
+    after: json("after").$type<{ status: string | null; effectiveStatus: string | null; dailyBudget: number | null }>(), // estado remoto verificado
+    warnings: json("warnings").$type<string[]>().notNull(),
+    status: mysqlEnum("status", OP_STATUS).notNull(),
+    createdBy: varchar("created_by", { length: 36 }).notNull(),
+    confirmedBy: varchar("confirmed_by", { length: 36 }),
+    createdAt: createdAt(),
+    expiresAt: datetime("expires_at", { mode: "date", fsp: 3 }).notNull(),
+    executedAt: datetime("executed_at", { mode: "date", fsp: 3 }),
+    verifiedAt: datetime("verified_at", { mode: "date", fsp: 3 }),
+    resultMessage: varchar("result_message", { length: 400 }),
+  },
+  (t) => [index("operations_org_idx").on(t.organizationId, t.createdAt), index("operations_campaign_idx").on(t.campaignId)],
+);
