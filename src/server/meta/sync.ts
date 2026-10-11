@@ -93,8 +93,9 @@ export async function syncAccount(actor: Actor, accountId: string, opts: Opts = 
       for (const part of chunk(okSets)) {
         await db.insert(adSets).values(part.map((s) => ({
           id: randomUUID(), organizationId: actor.organizationId, campaignId: campId.get(s.campaignExternalId)!, externalId: s.externalId, name: s.name, status: s.status,
-          effectiveStatus: s.effectiveStatus, optimizationGoal: s.optimizationGoal, dailyBudget: money(s.dailyBudget), lifetimeBudget: money(s.lifetimeBudget), syncedAt,
-        }))).onDuplicateKeyUpdate({ set: { name: sql`VALUES(name)`, status: sql`VALUES(status)`, effectiveStatus: sql`VALUES(effective_status)`, optimizationGoal: sql`VALUES(optimization_goal)`, dailyBudget: sql`VALUES(daily_budget)`, lifetimeBudget: sql`VALUES(lifetime_budget)`, syncedAt: sql`VALUES(synced_at)` } });
+          effectiveStatus: s.effectiveStatus, optimizationGoal: s.optimizationGoal, dailyBudget: money(s.dailyBudget), lifetimeBudget: money(s.lifetimeBudget),
+          bidStrategy: s.bidStrategy, startTime: s.startTime, endTime: s.endTime, targeting: s.targeting, syncedAt,
+        }))).onDuplicateKeyUpdate({ set: { name: sql`VALUES(name)`, status: sql`VALUES(status)`, effectiveStatus: sql`VALUES(effective_status)`, optimizationGoal: sql`VALUES(optimization_goal)`, dailyBudget: sql`VALUES(daily_budget)`, lifetimeBudget: sql`VALUES(lifetime_budget)`, bidStrategy: sql`VALUES(bid_strategy)`, startTime: sql`VALUES(start_time)`, endTime: sql`VALUES(end_time)`, targeting: sql`VALUES(targeting)`, syncedAt: sql`VALUES(synced_at)` } });
       }
       counts.adSets = okSets.length;
       const setRows = await db.select({ id: adSets.id, externalId: adSets.externalId }).from(adSets).innerJoin(campaigns, eq(campaigns.id, adSets.campaignId)).where(eq(campaigns.adAccountId, accountId));

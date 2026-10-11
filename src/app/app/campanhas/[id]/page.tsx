@@ -9,6 +9,7 @@ import { prepareOperationAction } from "../../../actions";
 import { AppError } from "@/lib/errors";
 import { objectiveLabel, statusInfo } from "@/lib/labels";
 import { brl, brl0, int, pct, ratio } from "@/lib/metrics";
+import { summarizeTargeting } from "@/lib/targeting";
 import { getCampaignDetail } from "@/server/insights";
 import { getConnection } from "@/server/meta/connection";
 import { parseFilters, type SP } from "@/server/params";
@@ -78,9 +79,20 @@ export default async function Detalhe({ params, searchParams }: { params: Promis
       </div>
       <Card className="mb-4 overflow-x-auto p-0">
         <h2 className="px-5 pt-4 text-sm font-semibold">Conjuntos de anúncios ({d.adSets.length})</h2>
-        <table className="mt-2 w-full text-sm"><thead><tr><Th>Conjunto</Th><Th>Status</Th><Th>Otimização</Th></tr></thead><tbody>
-          {d.adSets.length === 0 ? <tr><Td className="text-muted">Nenhum conjunto sincronizado.</Td></tr> : d.adSets.map((a) => { const si = statusInfo(a.effectiveStatus); return <tr key={a.id}><Td className="font-medium">{a.name}</Td><Td><Badge tone={si.tone}>{si.label}</Badge></Td><Td>{a.optimizationGoal ?? "—"}</Td></tr>; })}
+        <table className="mt-2 w-full text-sm"><thead><tr><Th>Conjunto</Th><Th>Status</Th><Th>Otimização</Th><Th>Lance</Th><Th>Veiculação</Th><Th>Segmentação</Th></tr></thead><tbody>
+          {d.adSets.length === 0 ? <tr><Td className="text-muted">Nenhum conjunto sincronizado.</Td></tr> : d.adSets.map((a) => {
+            const si = statusInfo(a.effectiveStatus); const tg = summarizeTargeting(a.targeting);
+            const dmy = (x: Date | null) => (x ? x.toLocaleDateString("pt-BR", { timeZone: "UTC" }) : null);
+            return (
+              <tr key={a.id}>
+                <Td className="font-medium">{a.name}</Td><Td><Badge tone={si.tone}>{si.label}</Badge></Td><Td>{a.optimizationGoal ?? "—"}</Td>
+                <Td>{a.bidStrategy ?? "—"}</Td>
+                <Td className="num">{dmy(a.startTime) ?? "—"}{a.endTime ? ` → ${dmy(a.endTime)}` : ""}</Td>
+                <Td className="text-xs text-muted">{[tg.age, tg.genders, tg.places, tg.interests && `Interesses: ${tg.interests}`, tg.placements && `Posicionamentos: ${tg.placements}`].filter(Boolean).join(" · ") || "Não informada"}</Td>
+              </tr>);
+          })}
         </tbody></table>
+        <p className="px-5 pb-3 pt-2 text-xs text-muted">Campos lidos da Meta na última sincronização; “—” = não informado.</p>
       </Card>
       <Card className="mb-4 overflow-x-auto p-0">
         <h2 className="px-5 pt-4 text-sm font-semibold">Anúncios ({d.ads.length})</h2>

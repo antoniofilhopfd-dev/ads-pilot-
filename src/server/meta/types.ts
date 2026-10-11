@@ -11,6 +11,7 @@ export type RemoteCampaign = {
 export type RemoteAdSet = {
   externalId: string; campaignExternalId: string; name: string; status: string | null; effectiveStatus: string | null;
   optimizationGoal: string | null; dailyBudget: number | null; lifetimeBudget: number | null;
+  bidStrategy: string | null; startTime: Date | null; endTime: Date | null; targeting: Record<string, unknown> | null;
 };
 
 export type RemoteAd = { externalId: string; adSetExternalId: string; name: string; status: string | null; effectiveStatus: string | null };

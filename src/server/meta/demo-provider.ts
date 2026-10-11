@@ -80,8 +80,10 @@ export class DemoProvider implements MetaProvider, MetaWriter {
   }
   async listAdSets(acct: string): Promise<RemoteAdSet[]> {
     return this.camps(acct).flatMap((c) => [
-      { externalId: `${c.externalId}_s1`, campaignExternalId: c.externalId, name: `${c.name} — Público amplo`, status: c.status, effectiveStatus: c.effectiveStatus, optimizationGoal: c.objective === "OUTCOME_SALES" ? "OFFSITE_CONVERSIONS" : "LINK_CLICKS", dailyBudget: null, lifetimeBudget: null },
-      { externalId: `${c.externalId}_s2`, campaignExternalId: c.externalId, name: `${c.name} — Interesses`, status: c.status, effectiveStatus: c.effectiveStatus, optimizationGoal: c.objective === "OUTCOME_SALES" ? "OFFSITE_CONVERSIONS" : "LINK_CLICKS", dailyBudget: null, lifetimeBudget: null },
+      { externalId: `${c.externalId}_s1`, campaignExternalId: c.externalId, name: `${c.name} — Público amplo`, status: c.status, effectiveStatus: c.effectiveStatus, optimizationGoal: c.objective === "OUTCOME_SALES" ? "OFFSITE_CONVERSIONS" : "LINK_CLICKS", dailyBudget: null, lifetimeBudget: null,
+        bidStrategy: "LOWEST_COST_WITHOUT_CAP", startTime: c.startTime, endTime: c.stopTime, targeting: { age_min: 18, age_max: 65, geo_locations: { countries: ["BR"] }, publisher_platforms: ["facebook", "instagram"] } },
+      { externalId: `${c.externalId}_s2`, campaignExternalId: c.externalId, name: `${c.name} — Interesses`, status: c.status, effectiveStatus: c.effectiveStatus, optimizationGoal: c.objective === "OUTCOME_SALES" ? "OFFSITE_CONVERSIONS" : "LINK_CLICKS", dailyBudget: null, lifetimeBudget: null,
+        bidStrategy: c.objective === "OUTCOME_SALES" ? "COST_CAP" : "LOWEST_COST_WITHOUT_CAP", startTime: c.startTime, endTime: c.stopTime, targeting: { age_min: 25, age_max: 54, genders: [2], geo_locations: { countries: ["BR"], cities: [{ name: "São Paulo" }] }, interests: [{ id: "6003139266461", name: "Compras online" }], publisher_platforms: ["instagram"] } },
     ]);
   }
   async listAds(acct: string): Promise<RemoteAd[]> {

@@ -76,8 +76,8 @@ export class GraphApiProvider implements MetaProvider {
   }
 
   async listAdSets(acct: string): Promise<RemoteAdSet[]> {
-    const rows = await this.paged(`${acct}/adsets`, { fields: "id,campaign_id,name,status,effective_status,optimization_goal,daily_budget,lifetime_budget" });
-    return rows.map((r) => ({ externalId: String(r.id), campaignExternalId: String(r.campaign_id), name: String(r.name), status: (r.status as string) ?? null, effectiveStatus: (r.effective_status as string) ?? null, optimizationGoal: (r.optimization_goal as string) ?? null, dailyBudget: money(r.daily_budget), lifetimeBudget: money(r.lifetime_budget) }));
+    const rows = await this.paged(`${acct}/adsets`, { fields: "id,campaign_id,name,status,effective_status,optimization_goal,daily_budget,lifetime_budget,bid_strategy,start_time,end_time,targeting" });
+    return rows.map((r) => ({ externalId: String(r.id), campaignExternalId: String(r.campaign_id), name: String(r.name), status: (r.status as string) ?? null, effectiveStatus: (r.effective_status as string) ?? null, optimizationGoal: (r.optimization_goal as string) ?? null, dailyBudget: money(r.daily_budget), lifetimeBudget: money(r.lifetime_budget), bidStrategy: (r.bid_strategy as string) ?? null, startTime: date(r.start_time), endTime: date(r.end_time), targeting: r.targeting && typeof r.targeting === "object" ? (r.targeting as Record<string, unknown>) : null }));
   }
 
   async listAds(acct: string): Promise<RemoteAd[]> {

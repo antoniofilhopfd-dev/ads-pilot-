@@ -40,7 +40,7 @@ export function assertAccountAccess(a: Actor, accountId: string) {
 }
 
 // Permissões de alcance da ORGANIZAÇÃO inteira: um membro com acesso restrito não as exerce.
-const ORG_WIDE = new Set<Permission>(["clients.write", "audit.read", "members.manage", "org.settings", "meta.connect", "reports.manage"]);
+const ORG_WIDE = new Set<Permission>(["clients.write", "audit.read", "members.manage", "org.settings", "meta.connect", "reports.manage", "library.write", "budgets.manage"]);
 
 // Permissão efetiva do ator (papel + restrição de acesso). Usar em telas e checagens; assertCan lança erro.
 export const canActor = (actor: Actor, permission: Permission) => !(isRestricted(actor) && ORG_WIDE.has(permission)) && can(actor.role, permission);
