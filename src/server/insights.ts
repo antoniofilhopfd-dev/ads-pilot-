@@ -22,7 +22,7 @@ async function loadRows(actor: Actor, f: Filters) {
     .select({
       campaignId: insightsDaily.campaignId, adAccountId: insightsDaily.adAccountId, date: insightsDaily.date,
       spend: insightsDaily.spend, impressions: insightsDaily.impressions, reach: insightsDaily.reach, clicks: insightsDaily.clicks,
-      results: insightsDaily.results, purchaseValue: insightsDaily.purchaseValue, currency: adAccounts.currency,
+      results: insightsDaily.results, resultType: insightsDaily.resultType, purchaseValue: insightsDaily.purchaseValue, currency: adAccounts.currency,
     })
     .from(insightsDaily)
     .innerJoin(adAccounts, eq(adAccounts.id, insightsDaily.adAccountId))
@@ -155,8 +155,8 @@ export async function getCampaignDetail(actor: Actor, campaignId: string, f: Fil
     .limit(1);
   if (!row) throw new AppError("not_found", "Campanha não encontrada.");
   const scope = (since: string, until: string) => and(eq(insightsDaily.campaignId, campaignId), eq(insightsDaily.organizationId, actor.organizationId), gte(insightsDaily.date, since), lte(insightsDaily.date, until));
-  const sel = { date: insightsDaily.date, spend: insightsDaily.spend, impressions: insightsDaily.impressions, reach: insightsDaily.reach, clicks: insightsDaily.clicks, results: insightsDaily.results, purchaseValue: insightsDaily.purchaseValue };
-  const norm = (rs: { date: string; spend: string | null; impressions: number | null; reach: number | null; clicks: number | null; results: number | null; purchaseValue: string | null }[]) => rs.map((r) => ({ ...r, spend: dec(r.spend), purchaseValue: dec(r.purchaseValue) }));
+  const sel = { date: insightsDaily.date, spend: insightsDaily.spend, impressions: insightsDaily.impressions, reach: insightsDaily.reach, clicks: insightsDaily.clicks, results: insightsDaily.results, resultType: insightsDaily.resultType, purchaseValue: insightsDaily.purchaseValue };
+  const norm = (rs: { date: string; spend: string | null; impressions: number | null; reach: number | null; clicks: number | null; results: number | null; resultType: string | null; purchaseValue: string | null }[]) => rs.map((r) => ({ ...r, spend: dec(r.spend), purchaseValue: dec(r.purchaseValue) }));
   const cur = norm(await db.select(sel).from(insightsDaily).where(scope(f.since, f.until)).orderBy(insightsDaily.date));
   const prev = norm(await db.select(sel).from(insightsDaily).where(scope(f.prevSince, f.prevUntil)));
   const sets = await db.select().from(adSets).where(and(eq(adSets.campaignId, campaignId), eq(adSets.organizationId, actor.organizationId)));

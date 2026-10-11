@@ -423,7 +423,7 @@ export async function experimentResults(actor: Actor, exp: { startsOn: string | 
       if (c && (!isRestricted(actor) || (actor.allowedAccountIds ?? []).includes(c.a))) {
         const { gte, lte } = await import("drizzle-orm");
         const rows = await db.select().from(insightsDaily).where(and(eq(insightsDaily.organizationId, actor.organizationId), eq(insightsDaily.campaignId, c.id), gte(insightsDaily.date, since), lte(insightsDaily.date, until)));
-        if (rows.length) t = aggregate(rows.map((r) => ({ spend: r.spend === null ? null : Number(r.spend), impressions: r.impressions, reach: r.reach, clicks: r.clicks, results: r.results, purchaseValue: r.purchaseValue === null ? null : Number(r.purchaseValue), date: r.date })));
+        if (rows.length) t = aggregate(rows.map((r) => ({ spend: r.spend === null ? null : Number(r.spend), impressions: r.impressions, reach: r.reach, clicks: r.clicks, results: r.results, resultType: r.resultType, purchaseValue: r.purchaseValue === null ? null : Number(r.purchaseValue), date: r.date })));
       }
     }
     data.push({ name: v.name, totals: t });

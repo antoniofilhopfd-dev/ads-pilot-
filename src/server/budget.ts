@@ -109,7 +109,7 @@ export async function simulationBase(actor: Actor, scope: (typeof BUDGET_SCOPES)
   const rows = await db.select().from(insightsDaily).where(and(eq(insightsDaily.organizationId, actor.organizationId), inArray(insightsDaily.adAccountId, sc.accountIds), gte(insightsDaily.date, since), lte(insightsDaily.date, until)));
   const by = Map.groupBy(rows, (r) => r.campaignId);
   const list = camps.map((c) => {
-    const r = (by.get(c.id) ?? []).map((x) => ({ spend: num(x.spend), impressions: x.impressions, reach: x.reach, clicks: x.clicks, results: x.results, purchaseValue: num(x.purchaseValue), date: x.date }));
+    const r = (by.get(c.id) ?? []).map((x) => ({ spend: num(x.spend), impressions: x.impressions, reach: x.reach, clicks: x.clicks, results: x.results, resultType: x.resultType, purchaseValue: num(x.purchaseValue), date: x.date }));
     const t = aggregate(r);
     const days = new Set(r.filter((x) => x.spend !== null).map((x) => x.date)).size;
     return { id: c.id, name: c.name, dailySpend: t.spend !== null && days > 0 ? t.spend / days : 0, costPerResult: t.costPerResult };

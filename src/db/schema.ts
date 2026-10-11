@@ -674,3 +674,66 @@ export const experiments = mysqlTable(
   },
   (t) => [index("experiments_org_idx").on(t.organizationId, t.createdAt)],
 );
+
+// ═════════════ v2 · Etapa 04: inteligência ═════════════
+export const ALERT_TYPES = ["budget_projection", "budget_exceeded", "goal_not_met", "no_delivery", "cost_rise", "ctr_drop", "frequency_high", "stale_sync"] as const;
+export const ALERT_SEVERITY = ["info", "warning", "critical"] as const;
+export const ALERT_STATE = ["open", "acknowledged", "resolved"] as const;
+
+// Configuração de alertas por organização (limiares, mínimos de amostra, responsáveis, reaviso).
+export type AlertConfig = {
+  enabled: Partial<Record<(typeof ALERT_TYPES)[number], boolean>>;
+  costRisePct: number; ctrDropPct: number; frequencyMax: number; minImpressions: number; minResults: number; noDeliveryDays: number;
+  responsibleUserIds: string[]; renotifyHours: number;
+};
+export const DEFAULT_ALERT_CONFIG: AlertConfig = { enabled: {}, costRisePct: 25, ctrDropPct: 25, frequencyMax: 3.5, minImpressions: 1000, minResults: 10, noDeliveryDays: 1, responsibleUserIds: [], renotifyHours: 24 };
+
+export const alertSettings = mysqlTable("alert_settings", {
+  organizationId: varchar("organization_id", { length: 36 }).primaryKey().references(() => organizations.id, { onDelete: "cascade" }),
+  config: json("config").$type<AlertConfig>().notNull(),
+  updatedBy: varchar("updated_by", { length: 36 }),
+  updatedAt: datetime("updated_at", { mode: "date", fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+});
+
+// Um alerta = (tipo + entidade) em um estado. dedupeKey impede repetição: o mesmo problema atualiza o mesmo alerta.
+export const alerts = mysqlTable(
+  "alerts",
+  {
+    id: id(),
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    dedupeKey: varchar("dedupe_key", { length: 120 }).notNull(),
+    type: mysqlEnum("type", ALERT_TYPES).notNull(),
+    severity: mysqlEnum("severity", ALERT_SEVERITY).notNull(),
+    state: mysqlEnum("state", ALERT_STATE).notNull().default("open"),
+    adAccountId: varchar("ad_account_id", { length: 36 }), // para visibilidade por conta (acesso restrito)
+    entityType: varchar("entity_type", { length: 20 }).notNull(),
+    entityId: varchar("entity_id", { length: 36 }).notNull(),
+    entityName: varchar("entity_name", { length: 300 }).notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    detail: json("detail").$type<{ message: string; facts: Record<string, string | number | null>; assumptions?: string[] }>().notNull(),
+    occurrences: int("occurrences").notNull().default(1),
+    firstSeenAt: datetime("first_seen_at", { mode: "date", fsp: 3 }).notNull(),
+    lastSeenAt: datetime("last_seen_at", { mode: "date", fsp: 3 }).notNull(),
+    lastNotifiedAt: datetime("last_notified_at", { mode: "date", fsp: 3 }),
+    acknowledgedBy: varchar("acknowledged_by", { length: 36 }),
+    acknowledgedAt: datetime("acknowledged_at", { mode: "date", fsp: 3 }),
+    resolvedAt: datetime("resolved_at", { mode: "date", fsp: 3 }),
+  },
+  (t) => [uniqueIndex("alerts_dedupe_uq").on(t.organizationId, t.dedupeKey), index("alerts_org_state_idx").on(t.organizationId, t.state, t.lastSeenAt)],
+);
+
+export const notifications = mysqlTable(
+  "notifications",
+  {
+    id: id(),
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    alertId: varchar("alert_id", { length: 36 }).references(() => alerts.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 200 }).notNull(),
+    body: varchar("body", { length: 500 }).notNull(),
+    href: varchar("href", { length: 200 }),
+    readAt: datetime("read_at", { mode: "date", fsp: 3 }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("notifications_user_idx").on(t.organizationId, t.userId, t.readAt, t.createdAt)],
+);

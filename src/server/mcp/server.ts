@@ -19,6 +19,10 @@ import { buildReport } from "../reports/builder";
 import { listExports, listTemplates } from "../reports/service";
 import { DEFAULT_SECTIONS, REPORT_TYPES, SECTIONS } from "../reports/types";
 import { listClients } from "../services/clients";
+import { listAlerts } from "../alerts";
+import { listBudgets } from "../budget";
+import { campaignDiagnostics } from "../diagnostics";
+import { evaluateGoals } from "../goals";
 import type { McpAuth } from "./tokens";
 
 export const NOTICE =
@@ -124,6 +128,27 @@ export function createMcpServer(auth: McpAuth): McpServer {
     const c = d.campaign;
     return { ctx: { accountId: c.adAccountId, days: a.days }, data: { campaign: { id: c.id, name: clean(c.name), objective: c.objective, status: c.status, effectiveStatus: c.effectiveStatus, dailyBudgetConfigured: c.dailyBudget, lifetimeBudgetConfigured: c.lifetimeBudget, account: clean(d.accountName), currency: d.currency },
       metrics: d.totals, previousPeriodMetrics: d.prevTotals, daily: d.daily.map(({ date, spend, impressions, clicks, results }) => ({ date, spend, impressions, clicks, results })), adSetCount: d.adSets.length, adCount: d.ads.length } };
+  });
+
+  def("list_alerts", "Listar alertas", "Lista alertas abertos ou reconhecidos (custo, CTR, frequência, entrega, orçamento, metas, sincronização), com fatos e premissas de cada um.", "read", { state: z.enum(["open", "acknowledged", "resolved"]).optional(), ...Page }, async (a, { actor }) => {
+    const rows = (await listAlerts(actor, { state: a.state })).map((x) => ({ id: x.id, type: x.type, severity: x.severity, state: x.state, entity: clean(x.entityName), title: x.title, message: clean(x.detail.message), facts: x.detail.facts, assumptions: x.detail.assumptions ?? [], occurrences: x.occurrences, firstSeenAt: x.firstSeenAt, lastSeenAt: x.lastSeenAt }));
+    const p = paginate(rows, a.page, a.pageSize);
+    return { ctx: null, data: p.rows, pagination: p.pagination };
+  });
+
+  def("list_budgets", "Listar orçamentos planejados", "Orçamento PLANEJADO do mês × gasto REPORTADO pela Meta, com ritmo e projeção (e suas premissas). É controle interno; não limita gasto na Meta.", "read", { period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional().describe("AAAA-MM; padrão: mês atual.") }, async (a, { actor }) => {
+    const rows = await listBudgets(actor, a.period ?? new Date().toISOString().slice(0, 7));
+    return { ctx: null, data: rows.map((b) => ({ id: b.id, scope: b.scope, target: clean(b.scopeLabel), period: b.period, planned: b.amount, currency: b.currency, spent: b.pacing.spent, status: b.pacing.status, projectedClose: b.pacing.projectedClose, suggestedDaily: b.pacing.suggestedDaily, milestonesReached: b.pacing.milestonesReached, assumptions: b.pacing.assumptions })) };
+  });
+
+  def("list_goals", "Listar metas", "Metas internas e seu status atual (atingida, não atingida, sem dados, amostra insuficiente).", "read", {}, async (_, { actor }) => {
+    const rows = await evaluateGoals(actor);
+    return { ctx: null, data: rows.map((g) => ({ id: g.id, target: clean(g.scopeLabel), metric: g.metric, rule: g.direction === "max" ? "até o valor" : "no mínimo o valor", goal: g.target, current: g.current, status: g.status, windowDays: g.windowDays })) };
+  });
+
+  def("get_campaign_diagnostics", "Diagnóstico da campanha", "Diagnóstico por regras: observação, dados, comparação, hipótese (sempre não comprovada), confiança, recomendação, riscos e próxima ação. Não é decisão: o usuário decide.", "read", { campaignId: z.string().uuid() }, async (a, { actor }) => {
+    const d = await campaignDiagnostics(actor, a.campaignId);
+    return { ctx: null, data: { campaign: { id: d.campaign.id, name: clean(d.campaign.name) }, diagnostics: d.items, ai: d.llm } };
   });
 
   def("list_ad_sets", "Listar conjuntos de anúncios", "Lista os conjuntos de anúncios de uma campanha.", "read", { campaignId: z.string().uuid(), ...Page }, async (a, { actor }) => {

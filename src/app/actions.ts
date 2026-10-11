@@ -8,9 +8,10 @@ import { requireActor, run, cookieOpts, ORG_COOKIE, SESSION_COOKIE, type ActionR
 import { createSession, destroySession, login, register, requestPasswordReset, resetPassword } from "@/server/services/auth";
 import { createClient, deleteClient, updateClient } from "@/server/services/clients";
 import { addMemberByEmail, changeMemberRole, removeMember, renameOrganization, setMemberAccess } from "@/server/services/organizations";
-import { listUserOrganizations } from "@/server/context";
+import { canActor, listUserOrganizations } from "@/server/context";
 import { configureAccount, connectDemo, disconnect, discoverAccounts } from "@/server/meta/connection";
 import { syncAccount, syncAllSelected } from "@/server/meta/sync";
+import { acknowledgeAlert, evaluateAlerts, markNotificationsRead, saveAlertConfig } from "@/server/alerts";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
@@ -179,6 +180,7 @@ export async function syncAllAction(_: ActionResult, __: FormData): Promise<Acti
   return run(async () => {
     const { actor } = await requireActor();
     const res = await syncAllSelected(actor, { trigger: "manual" });
+    await evaluateAlerts(actor.organizationId).catch(() => {});
     revalidatePath("/app", "layout");
     if (res.length === 0) return { error: "Nenhuma conta selecionada para sincronizar." };
     const bad = res.filter((r) => "error" in r || ("status" in r && r.status === "failed")).length;
@@ -508,4 +510,32 @@ export async function saveExperimentAction(_: ActionResult, f: FormData): Promis
 }
 export async function experimentStatusAction(_: ActionResult, f: FormData): Promise<ActionResult> {
   return run(async () => { const { actor } = await requireActor(); await Lib.setExperimentStatus(actor, str(f, "experimentId"), str(f, "status") as never, optStr(f, "conclusao"), optStr(f, "proxima")); revalidatePath("/app/experimentos"); return { ok: "Atualizado." }; });
+}
+
+// ───────────── Etapa 04 (v2): alertas e notificações ─────────────
+export async function acknowledgeAlertAction(f: FormData) {
+  const { actor } = await requireActor(); await run(async () => acknowledgeAlert(actor, str(f, "alertId"))); revalidatePath("/app", "layout");
+}
+export async function reevaluateAlertsAction(_: ActionResult, __: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    if (!canActor(actor, "campaigns.write")) throw new AppError("forbidden", "Você não tem permissão para esta ação.");
+    const r = await evaluateAlerts(actor.organizationId);
+    revalidatePath("/app", "layout");
+    return { ok: `Avaliação concluída: ${r.opened} aberto(s), ${r.updated} mantido(s), ${r.resolved} resolvido(s), ${r.notified} notificação(ões).` };
+  });
+}
+export async function saveAlertConfigAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const n = (k: string) => Number(str(f, k).replace(",", "."));
+    const types = ["budget_projection", "budget_exceeded", "goal_not_met", "no_delivery", "cost_rise", "ctr_drop", "frequency_high", "stale_sync"];
+    await saveAlertConfig(actor, { costRisePct: n("costRisePct"), ctrDropPct: n("ctrDropPct"), frequencyMax: n("frequencyMax"), minImpressions: n("minImpressions"), minResults: n("minResults"), noDeliveryDays: n("noDeliveryDays"), renotifyHours: n("renotifyHours"),
+      responsibleUserIds: f.getAll("responsaveis").map(String), enabled: Object.fromEntries(types.map((t) => [t, f.get(`on_${t}`) === "on"])) });
+    revalidatePath("/app/alertas");
+    return { ok: "Configuração de alertas salva." };
+  });
+}
+export async function markReadAction() {
+  const { actor } = await requireActor(); await markNotificationsRead(actor); revalidatePath("/app", "layout");
 }

@@ -4,6 +4,7 @@ import { metaConnections } from "@/db/schema";
 import { logger } from "@/lib/logger";
 import { getActor } from "../context";
 import { syncAllSelected } from "../meta/sync";
+import { evaluateAlerts } from "../alerts";
 
 // Sincroniza as contas selecionadas de todas as organizações com conexão ativa. Chamado pelo script
 // (`npm run sync`) e pela rota `POST /api/cron/sync`. Idempotente: a trava por conta impede sobreposição.
@@ -16,6 +17,7 @@ export async function runScheduledSync() {
       const actor = await getActor(c.connectedBy, c.organizationId);
       const res = await syncAllSelected(actor, { trigger: "scheduled" });
       const failed = res.filter((r) => "error" in r || ("status" in r && r.status === "failed")).length;
+      await evaluateAlerts(c.organizationId).catch((e) => logger.error("alert_eval_failed", { organizationId: c.organizationId, error: e instanceof Error ? e.message : String(e) }));
       out.push({ organizationId: c.organizationId, synced: res.length - failed, failed });
     } catch (e) {
       logger.error("scheduled_sync_org_failed", { organizationId: c.organizationId, error: e instanceof Error ? e.message : String(e) });

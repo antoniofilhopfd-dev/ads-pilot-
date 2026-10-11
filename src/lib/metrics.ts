@@ -12,13 +12,19 @@
 export type Row = {
   spend: number | null; impressions: number | null; reach: number | null; clicks: number | null;
   results: number | null; purchaseValue: number | null;
+  resultType?: string | null; // tipo da ação contada em "results" (ex.: lead, purchase, link_click)
 };
 
 export type Totals = {
   spend: number | null; impressions: number | null; reach: number | null; clicks: number | null; results: number | null;
   purchaseValue: number | null; ctr: number | null; cpc: number | null; cpm: number | null; costPerResult: number | null;
   roas: number | null; frequency: number | null; days: number;
+  // Por TIPO de resultado (só linhas cujo resultType é do tipo; linhas sem tipo informado não entram).
+  leads: number | null; cpl: number | null; purchases: number | null; cpa: number | null;
+  conversionRate: number | null; // resultados ÷ cliques (%)
 };
+export const isLeadType = (t?: string | null) => !!t && /lead/i.test(t);
+export const isPurchaseType = (t?: string | null) => !!t && /purchase/i.test(t);
 
 const sum = (xs: (number | null)[]) => {
   const v = xs.filter((x): x is number => x !== null);
@@ -43,7 +49,19 @@ export function aggregate(rows: (Row & { date?: string })[]): Totals {
   const pairedResults = sum(paired.map((r) => r.results));
   const roasRows = rows.filter((r) => r.spend !== null && r.purchaseValue !== null);
 
+  const byType = (test: (t?: string | null) => boolean) => {
+    const rs = rows.filter((r) => test(r.resultType) && r.results !== null);
+    const n = sum(rs.map((r) => r.results));
+    const sp = sum(rs.filter((r) => r.spend !== null).map((r) => r.spend));
+    return { n, cost: div(sp, n) };
+  };
+  const L = byType(isLeadType), P = byType(isPurchaseType);
+  const convRows = rows.filter((r) => r.clicks !== null && r.results !== null);
+  const convClicks = sum(convRows.map((r) => r.clicks));
+
   return {
+    leads: L.n, cpl: L.cost, purchases: P.n, cpa: P.cost,
+    conversionRate: div(sum(convRows.map((r) => r.results)), convClicks) === null ? null : (sum(convRows.map((r) => r.results))! / convClicks!) * 100,
     spend, impressions, reach, clicks, results, purchaseValue, days,
     ctr: div(clicks, impressions) === null ? null : (clicks! / impressions!) * 100,
     cpc: div(spend, clicks),

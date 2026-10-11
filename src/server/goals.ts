@@ -19,7 +19,7 @@ const goalSchema = z.object({
 export const DEFAULT_DIRECTION: Record<(typeof GOAL_METRICS)[number], "max" | "min"> = { cpa: "max", cpl: "max", cpc: "max", cpm: "max", roas: "min", ctr: "min", spend: "max", results: "min" };
 
 export const metricValue = (t: Totals, m: (typeof GOAL_METRICS)[number]): number | null =>
-  ({ cpa: t.costPerResult, cpl: t.costPerResult, roas: t.roas, ctr: t.ctr, cpc: t.cpc, cpm: t.cpm, spend: t.spend, results: t.results } as Record<string, number | null>)[m];
+  ({ cpa: t.cpa, cpl: t.cpl, roas: t.roas, ctr: t.ctr, cpc: t.cpc, cpm: t.cpm, spend: t.spend, results: t.results } as Record<string, number | null>)[m];
 
 async function assertScope(actor: Actor, scope: (typeof GOAL_SCOPES)[number], scopeId: string) {
   if (scope === "org") return;
@@ -73,7 +73,7 @@ export async function evaluateGoals(actor: Actor, now = new Date()): Promise<Goa
     } catch { continue; }
     const since = new Date(now.getTime() - (g.windowDays - 1) * 86_400_000).toISOString().slice(0, 10), until = now.toISOString().slice(0, 10);
     const rows = accountIds.length ? await db.select().from(insightsDaily).where(and(eq(insightsDaily.organizationId, actor.organizationId), inArray(insightsDaily.adAccountId, accountIds), gte(insightsDaily.date, since), lte(insightsDaily.date, until), campaignId ? eq(insightsDaily.campaignId, campaignId) : undefined)) : [];
-    const t = aggregate(rows.map((r) => ({ spend: r.spend === null ? null : Number(r.spend), impressions: r.impressions, reach: r.reach, clicks: r.clicks, results: r.results, purchaseValue: r.purchaseValue === null ? null : Number(r.purchaseValue), date: r.date })));
+    const t = aggregate(rows.map((r) => ({ spend: r.spend === null ? null : Number(r.spend), impressions: r.impressions, reach: r.reach, clicks: r.clicks, results: r.results, resultType: r.resultType, purchaseValue: r.purchaseValue === null ? null : Number(r.purchaseValue), date: r.date })));
     const current = metricValue(t, g.metric), target = Number(g.target);
     let status: GoalStatus = "sem_dados", gapPct: number | null = null;
     if (current !== null) {
