@@ -302,3 +302,37 @@ export const operations = mysqlTable(
   },
   (t) => [index("operations_org_idx").on(t.organizationId, t.createdAt), index("operations_campaign_idx").on(t.campaignId)],
 );
+
+// ───────────── Etapa 05: relatórios ─────────────
+export const reportTemplates = mysqlTable(
+  "report_templates",
+  {
+    id: id(),
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 120 }).notNull(),
+    config: json("config").$type<Record<string, unknown>>().notNull(),
+    createdBy: varchar("created_by", { length: 36 }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("report_templates_org_name_uq").on(t.organizationId, t.name)],
+);
+
+// Metadados de cada exportação (o arquivo em si não é guardado). `verified` = o arquivo foi reaberto e conferido.
+export const reportExports = mysqlTable(
+  "report_exports",
+  {
+    id: id(),
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 36 }),
+    reportType: varchar("report_type", { length: 30 }).notNull(),
+    format: mysqlEnum("format", ["pdf", "xlsx", "csv"]).notNull(),
+    config: json("config").$type<Record<string, unknown>>().notNull(),
+    filename: varchar("filename", { length: 200 }).notNull(),
+    bytes: int("bytes").notNull(),
+    sha256: varchar("sha256", { length: 64 }).notNull(),
+    verified: boolean("verified").notNull(),
+    verification: json("verification").$type<string[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("report_exports_org_idx").on(t.organizationId, t.createdAt)],
+);

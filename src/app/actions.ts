@@ -255,3 +255,24 @@ export async function cancelOperationAction(f: FormData) {
   await run(async () => cancelOperation(actor, str(f, "operationId")));
   redirect(`/app/campanhas/${campaignId}`);
 }
+
+// ───────────── Etapa 05: modelos de relatório ─────────────
+import { deleteTemplate, saveTemplate } from "@/server/reports/service";
+import { parseConfig } from "@/server/reports/builder";
+
+export async function saveTemplateAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const raw: Record<string, string[]> = {};
+    for (const k of ["tipo", "dias", "cliente", "conta", "secoes"]) raw[k] = f.getAll(k).map(String);
+    await saveTemplate(actor, str(f, "name"), parseConfig(raw));
+    revalidatePath("/app/relatorios");
+    return { ok: "Modelo salvo." };
+  });
+}
+
+export async function deleteTemplateAction(f: FormData) {
+  const { actor } = await requireActor();
+  await run(async () => deleteTemplate(actor, str(f, "templateId")));
+  revalidatePath("/app/relatorios");
+}

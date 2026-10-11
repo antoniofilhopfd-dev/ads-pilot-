@@ -7,6 +7,7 @@ const NAV = [
   { href: "/app", label: "Painel" },
   { href: "/app/campanhas", label: "Campanhas" },
   { href: "/app/operacoes", label: "Operações" },
+  { href: "/app/relatorios", label: "Relatórios" },
   { href: "/app/clientes", label: "Clientes" },
   { href: "/app/integracoes", label: "Integrações" },
   { href: "/app/equipe", label: "Equipe" },

@@ -35,11 +35,11 @@ async function loadRows(actor: Actor, f: Filters) {
 }
 
 export type CampaignRow = {
-  id: string; name: string; objective: string | null; status: string | null; effectiveStatus: string | null; accountName: string; currency: string;
+  id: string; accountId: string; clientId: string | null; name: string; objective: string | null; status: string | null; effectiveStatus: string | null; accountName: string; currency: string;
   dailyBudget: number | null; lifetimeBudget: number | null; totals: Totals;
 };
 
-async function loadCampaigns(actor: Actor, f: Filters): Promise<CampaignRow[]> {
+export async function loadCampaigns(actor: Actor, f: Filters): Promise<CampaignRow[]> {
   const camps = await db
     .select({ c: campaigns, accountName: adAccounts.name, currency: adAccounts.currency })
     .from(campaigns).innerJoin(adAccounts, eq(adAccounts.id, campaigns.adAccountId))
@@ -47,10 +47,12 @@ async function loadCampaigns(actor: Actor, f: Filters): Promise<CampaignRow[]> {
       eq(campaigns.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true),
       f.accountId ? eq(adAccounts.id, f.accountId) : undefined, f.clientId ? eq(adAccounts.clientId, f.clientId) : undefined,
     ));
+  const acctRows = await db.select({ id: adAccounts.id, clientId: adAccounts.clientId }).from(adAccounts).where(eq(adAccounts.organizationId, actor.organizationId));
+  const clientOf = new Map(acctRows.map((a) => [a.id, a.clientId]));
   const rows = await loadRows(actor, f);
   const byCamp = Map.groupBy(rows, (r) => r.campaignId);
   return camps.map(({ c, accountName, currency }) => ({
-    id: c.id, name: c.name, objective: c.objective, status: c.status, effectiveStatus: c.effectiveStatus, accountName, currency,
+    id: c.id, accountId: c.adAccountId, clientId: clientOf.get(c.adAccountId) ?? null, name: c.name, objective: c.objective, status: c.status, effectiveStatus: c.effectiveStatus, accountName, currency,
     dailyBudget: dec(c.dailyBudget), lifetimeBudget: dec(c.lifetimeBudget), totals: aggregate(byCamp.get(c.id) ?? []),
   }));
 }

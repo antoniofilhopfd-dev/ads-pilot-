@@ -12,12 +12,13 @@ export const PERMISSIONS = [
   "meta.sync",
   "meta.connect",
   "campaigns.write",
+  "reports.manage",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 const MATRIX: Record<Role, readonly Permission[]> = {
   admin: PERMISSIONS,
-  manager: ["org.read", "clients.read", "clients.write", "audit.read", "insights.read", "meta.sync", "campaigns.write"],
+  manager: ["org.read", "clients.read", "clients.write", "audit.read", "insights.read", "meta.sync", "campaigns.write", "reports.manage"],
   analyst: ["org.read", "clients.read", "insights.read"],
 };
 

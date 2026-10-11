@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ["mysql2"],
+  serverExternalPackages: ["mysql2", "pdfkit", "pdfjs-dist", "exceljs"],
   async headers() {
     return [
       {
