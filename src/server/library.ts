@@ -133,7 +133,7 @@ export async function saveAudience(actor: Actor, input: { id?: string; name: str
     const [cur] = await db.select().from(audiences).where(and(eq(audiences.id, input.id), eq(audiences.organizationId, actor.organizationId)));
     if (!cur) throw new AppError("not_found", "Público não encontrado.");
     const version = cur.version + 1;
-    try { await db.update(audiences).set({ name: n.data, clientId, folderId, objective: input.objective ?? null, config: cfg.data, reachEstimate: reach, version, updatedAt: new Date() }).where(eq(audiences.id, cur.id)); } catch (e) { dupMsg(e, "Já existe um público com esse nome."); }
+    try { await db.update(audiences).set({ name: n.data, clientId, folderId, objective: input.objective ?? null, config: cfg.data, reachEstimate: input.reachEstimate === undefined ? cur.reachEstimate : reach, version, updatedAt: new Date() }).where(eq(audiences.id, cur.id)); } catch (e) { dupMsg(e, "Já existe um público com esse nome."); }
     await db.insert(audienceVersions).values({ audienceId: cur.id, version, organizationId: actor.organizationId, config: cfg.data, note: input.note?.slice(0, 300) ?? null, changedBy: actor.userId });
     await A(actor, "audience.update", "audience", cur.id, { version: cur.version, config: cur.config }, { version, config: cfg.data });
     return cur.id;
@@ -404,4 +404,30 @@ export async function setExperimentStatus(actor: Actor, id: string, status: "pla
   const [r] = await db.update(experiments).set({ status, conclusion: conclusion?.trim().slice(0, 2000) ?? null, nextAction: nextAction?.trim().slice(0, 300) ?? null, updatedAt: new Date() }).where(and(eq(experiments.id, id), eq(experiments.organizationId, actor.organizationId)));
   if (r.affectedRows !== 1) throw new AppError("not_found", "Experimento não encontrado.");
   await A(actor, "experiment.status", "experiment", id, null, { status });
+}
+
+// Resultado por variante: soma dos insights SINCRONIZADOS das campanhas vinculadas, na janela do experimento (padrão: últimos 30 dias).
+// Campanhas fora do acesso do ator contam como "sem dados" (não revelam números).
+export async function experimentResults(actor: Actor, exp: { startsOn: string | null; endsOn: string | null; primaryMetric: string; variants: { name: string; campaignId: string | null }[] }, now = new Date()) {
+  assertCan(actor, "insights.read");
+  const { campaigns, insightsDaily } = await import("@/db/schema");
+  const { aggregate } = await import("./../lib/metrics");
+  const { evaluateExperiment } = await import("./../lib/experiments");
+  const until = exp.endsOn && exp.endsOn < now.toISOString().slice(0, 10) ? exp.endsOn : now.toISOString().slice(0, 10);
+  const since = exp.startsOn ?? new Date(now.getTime() - 29 * 86_400_000).toISOString().slice(0, 10);
+  const data = [];
+  for (const v of exp.variants) {
+    let t = null as ReturnType<typeof aggregate> | null;
+    if (v.campaignId) {
+      const [c] = await db.select({ id: campaigns.id, a: campaigns.adAccountId }).from(campaigns).where(and(eq(campaigns.id, v.campaignId), eq(campaigns.organizationId, actor.organizationId)));
+      if (c && (!isRestricted(actor) || (actor.allowedAccountIds ?? []).includes(c.a))) {
+        const { gte, lte } = await import("drizzle-orm");
+        const rows = await db.select().from(insightsDaily).where(and(eq(insightsDaily.organizationId, actor.organizationId), eq(insightsDaily.campaignId, c.id), gte(insightsDaily.date, since), lte(insightsDaily.date, until)));
+        if (rows.length) t = aggregate(rows.map((r) => ({ spend: r.spend === null ? null : Number(r.spend), impressions: r.impressions, reach: r.reach, clicks: r.clicks, results: r.results, purchaseValue: r.purchaseValue === null ? null : Number(r.purchaseValue), date: r.date })));
+      }
+    }
+    data.push({ name: v.name, totals: t });
+  }
+  const verdict = evaluateExperiment(exp.primaryMetric, data.map((d) => ({ name: d.name, impressions: d.totals?.impressions ?? null, clicks: d.totals?.clicks ?? null, results: d.totals?.results ?? null, spend: d.totals?.spend ?? null })));
+  return { since, until, variants: data, verdict };
 }

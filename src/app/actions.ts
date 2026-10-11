@@ -373,3 +373,139 @@ export async function deleteGoalAction(f: FormData) {
   await run(async () => deleteGoal(actor, str(f, "goalId")));
   revalidatePath("/app/metas");
 }
+
+// ───────────── Etapa 03 (v2): biblioteca ─────────────
+import * as Lib from "@/server/library";
+import { applyPattern } from "@/lib/utm";
+
+const optStr = (f: FormData, k: string) => { const v = str(f, k).trim(); return v === "" ? undefined : v; };
+const optNum = (f: FormData, k: string) => { const v = optStr(f, k); return v === undefined ? undefined : Number(v.replace(",", ".")); };
+const idOrNull = (f: FormData, k: string) => optStr(f, k) ?? null;
+
+export async function createFolderAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => { const { actor } = await requireActor(); await Lib.createFolder(actor, str(f, "tipo"), str(f, "name")); revalidatePath("/app", "layout"); return { ok: "Pasta criada." }; });
+}
+export async function deleteFolderAction(f: FormData) {
+  const { actor } = await requireActor(); await run(async () => Lib.deleteFolder(actor, str(f, "folderId"))); revalidatePath("/app", "layout");
+}
+export async function createLabelAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => { const { actor } = await requireActor(); await Lib.createLabel(actor, str(f, "name")); revalidatePath("/app", "layout"); return { ok: "Etiqueta criada." }; });
+}
+export async function deleteLabelAction(f: FormData) {
+  const { actor } = await requireActor(); await run(async () => Lib.deleteLabel(actor, str(f, "labelId"))); revalidatePath("/app", "layout");
+}
+export async function setLabelsAction(f: FormData) {
+  const { actor } = await requireActor();
+  await run(async () => Lib.setEntityLabels(actor, str(f, "entidade") as never, str(f, "entityId"), f.getAll("labels").map(String)));
+  revalidatePath("/app", "layout");
+}
+
+export async function saveAudienceAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const id = await Lib.saveAudience(actor, {
+      id: optStr(f, "id"), name: str(f, "name"), clientId: idOrNull(f, "cliente"), folderId: idOrNull(f, "pasta"), objective: optStr(f, "objetivo") ?? null,
+      reachEstimate: optNum(f, "alcance"), reachSource: optStr(f, "fonte_alcance"), note: optStr(f, "nota"),
+      config: { locations: str(f, "locais"), ageMin: Number(str(f, "idade_min") || 18), ageMax: Number(str(f, "idade_max") || 65), genders: str(f, "generos") || "todos", interests: str(f, "interesses"), exclusions: str(f, "exclusoes"), source: optStr(f, "origem") },
+    });
+    revalidatePath("/app/publicos");
+    return { ok: optStr(f, "id") ? `Nova versão salva.` : `Público salvo (${id.slice(0, 8)}).` };
+  });
+}
+export async function archiveAudienceAction(f: FormData) {
+  const { actor } = await requireActor(); await run(async () => Lib.archiveAudience(actor, str(f, "audienceId"), str(f, "arquivar") === "1")); revalidatePath("/app/publicos");
+}
+
+export async function saveCreativeAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const file = f.get("imagem");
+    const image = file instanceof File && file.size > 0 ? Buffer.from(await file.arrayBuffer()) : null;
+    const list = (k: string) => str(f, k).split("\n").map((s) => s.trim()).filter(Boolean);
+    await Lib.saveCreative(actor, {
+      id: optStr(f, "id"), name: str(f, "name"), format: str(f, "formato"), clientId: idOrNull(f, "cliente"), folderId: idOrNull(f, "pasta"), image,
+      primaryText: optStr(f, "texto"), headline: optStr(f, "titulo"), description: optStr(f, "descricao"), cta: optStr(f, "cta"), url: optStr(f, "url"), videoUrl: optStr(f, "video"), notes: optStr(f, "notas"),
+      variants: { primaryTexts: list("v_textos"), headlines: list("v_titulos"), descriptions: list("v_descricoes") },
+    });
+    revalidatePath("/app/criativos");
+    return { ok: "Criativo salvo." };
+  });
+}
+export async function creativeStatusAction(f: FormData) {
+  const { actor } = await requireActor(); await run(async () => Lib.setCreativeStatus(actor, str(f, "creativeId"), str(f, "status") as never)); revalidatePath("/app/criativos");
+}
+export async function linkCreativeAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await Lib.linkCreative(actor, str(f, "creativeId"), str(f, "campanha"), optStr(f, "anuncio") ?? null, optStr(f, "desde"), optStr(f, "nota"));
+    revalidatePath("/app/criativos");
+    return { ok: "Vínculo registrado (somente no AdsPilot; nada foi alterado na Meta)." };
+  });
+}
+
+export async function createDraftAction() {
+  const { actor } = await requireActor();
+  let id = "";
+  const r = await run(async () => { id = await Lib.createDraft(actor); });
+  if (r?.error) redirect("/app/rascunhos?erro=1");
+  redirect(`/app/rascunhos/${id}?etapa=1`);
+}
+export async function saveDraftStepAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  const step = Number(str(f, "etapa"));
+  const r = await run(async () => {
+    const { actor } = await requireActor();
+    const patch: Record<string, unknown> = {};
+    const text = ["adAccountId", "objective", "campaignName", "budgetMode", "specialCategory", "adSetName", "bidStrategy", "startDate", "endDate", "audienceId", "locations", "placements", "placementList", "creativeId", "adName", "destinationUrl", "utmSource", "utmMedium", "utmCampaign", "utmContent"];
+    const nums = ["campaignDailyBudget", "dailyBudget", "bidAmount", "ageMin", "ageMax"];
+    for (const k of text) if (f.has(k)) patch[k] = str(f, k).trim() || undefined;
+    for (const k of nums) if (f.has(k)) patch[k] = optNum(f, k);
+    if (f.has("reviewed")) patch.reviewed = str(f, "reviewed") === "on";
+    else if (step === 9) patch.reviewed = false;
+    await Lib.saveDraftStep(actor, str(f, "draftId"), step, patch as never);
+  });
+  if (r?.error) return r;
+  redirect(`/app/rascunhos/${str(f, "draftId")}?etapa=${Math.min(step + (str(f, "acao") === "voltar" ? -1 : 1), 10)}`);
+}
+export async function deleteDraftAction(f: FormData) {
+  const { actor } = await requireActor(); await run(async () => Lib.deleteDraft(actor, str(f, "draftId"))); redirect("/app/rascunhos");
+}
+export async function sendDraftAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => { const { actor } = await requireActor(); await Lib.sendDraft(actor, str(f, "draftId")); });
+}
+
+export async function createUtmAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const vars = { campanha: str(f, "campanha"), cliente: str(f, "clienteNome"), data: new Date().toISOString().slice(0, 7), criativo: str(f, "criativo") };
+    const r = await Lib.createUtmLink(actor, { baseUrl: str(f, "url"), clientId: idOrNull(f, "cliente"), params: {
+      utm_source: applyPattern(str(f, "source"), vars), utm_medium: applyPattern(str(f, "medium"), vars), utm_campaign: applyPattern(str(f, "utmcampaign") || vars.campanha, vars),
+      utm_content: applyPattern(str(f, "content"), vars) || undefined, utm_term: applyPattern(str(f, "term"), vars) || undefined } });
+    revalidatePath("/app/utm");
+    return { ok: `Link gerado: ${r.url}${r.warnings.length ? ` — Avisos: ${r.warnings.join(" ")}` : ""}` };
+  });
+}
+export async function saveUtmTemplateAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => { const { actor } = await requireActor(); await Lib.saveUtmTemplate(actor, { name: str(f, "name"), source: str(f, "source"), medium: str(f, "medium"), campaignPattern: str(f, "campaignPattern"), contentPattern: optStr(f, "contentPattern"), termPattern: optStr(f, "termPattern") }); revalidatePath("/app/utm"); return { ok: "Modelo salvo." }; });
+}
+export async function deleteUtmTemplateAction(f: FormData) {
+  const { actor } = await requireActor(); await run(async () => Lib.deleteUtmTemplate(actor, str(f, "templateId"))); revalidatePath("/app/utm");
+}
+
+export async function checklistItemAction(f: FormData) {
+  const { actor } = await requireActor();
+  await run(async () => Lib.setChecklistItem(actor, str(f, "chave"), str(f, "tipo") as never, str(f, "alvo"), str(f, "item"), str(f, "feito") === "1", optStr(f, "nota")));
+  revalidatePath("/app/checklists");
+}
+
+export async function saveExperimentAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const variants = [1, 2, 3].map((n) => ({ name: str(f, `v${n}`).trim(), campaignId: optStr(f, `c${n}`) ?? null })).filter((v) => v.name);
+    await Lib.saveExperiment(actor, { name: str(f, "name"), hypothesis: str(f, "hipotese"), objective: str(f, "objetivo"), variable: str(f, "variavel"), primaryMetric: str(f, "metrica"), guardMetrics: f.getAll("guarda").map(String), budget: optNum(f, "orcamento"), startsOn: optStr(f, "inicio"), endsOn: optStr(f, "fim"), clientId: idOrNull(f, "cliente"), variants });
+    revalidatePath("/app/experimentos");
+    return { ok: "Experimento criado." };
+  });
+}
+export async function experimentStatusAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => { const { actor } = await requireActor(); await Lib.setExperimentStatus(actor, str(f, "experimentId"), str(f, "status") as never, optStr(f, "conclusao"), optStr(f, "proxima")); revalidatePath("/app/experimentos"); return { ok: "Atualizado." }; });
+}
