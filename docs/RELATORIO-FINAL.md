@@ -54,3 +54,9 @@
 
 ## Itens fora do escopo desta rodada (não implementados)
 Criar campanhas/anúncios/criativos; métricas por conjunto/anúncio; outras plataformas; alertas/anomalias por IA e automações (§11); convites; 2FA; OAuth para o MCP; CI no GitHub.
+
+
+## Atualizações posteriores
+- **Acesso por conta de anúncios para cada pessoa** — `docs/acesso-por-conta/RELATORIO.md` (antes não era possível; agora o administrador libera contas específicas por membro, com a restrição valendo em telas, relatórios, exportações, operações e MCP).
+- **Logo da empresa nos relatórios** — `docs/logo-relatorio/RELATORIO.md` (PDF, XLSX e tela; upload seguro e verificação da presença da logo).
+- Estado dos testes após essas duas funções: **119 testes automatizados** e 9 suítes E2E, todos verdes; `npm audit` de produção 0.

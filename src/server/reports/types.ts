@@ -1,4 +1,5 @@
 import type { AttentionItem, CampaignRow } from "../insights";
+import type { Logo } from "../services/logo";
 
 export const REPORT_TYPES = ["executive", "campaigns", "client", "account", "spend_budget", "results_costs", "comparison", "changes", "alerts", "health"] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
@@ -42,6 +43,7 @@ export type Report = {
     organization: string; client: string | null; account: string | null; since: string; until: string; prevSince: string; prevUntil: string;
     generatedAt: Date; lastSyncedAt: Date | null; stale: boolean; isDemo: boolean; currency: string; mixedCurrency: boolean;
     coverageSince: string | null; prevComparable: boolean; partialCurrent: boolean; hasData: boolean;
+    logo: Logo | null; // logo da empresa (organização), quando cadastrada
   };
   kpis: Kpi[];
   daily: { date: string; spend: number | null; results: number | null; impressions: number | null; clicks: number | null }[];

@@ -13,6 +13,10 @@ export function ReportView({ r }: { r: Report }) {
   return (
     <article aria-label={r.title} className="space-y-4">
       <header>
+        {m.logo && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={`/api/logo?v=${m.logo.sha256.slice(0, 12)}`} alt={`Logo de ${m.organization}`} className="mb-3 max-h-14 max-w-[240px] object-contain" />
+        )}
         <p className="text-sm text-muted">{m.organization}{m.client ? ` · Cliente: ${m.client}` : ""}{m.account ? ` · Conta: ${m.account}` : ""}</p>
         <p className="text-sm text-muted">Período analisado: <b className="text-ink">{d(m.since)} a {d(m.until)}</b> · Gerado em {dt(m.generatedAt)} · Última sincronização: <b className={m.stale ? "text-[#7a5200]" : "text-ink"}>{dt(m.lastSyncedAt)}{m.stale ? " (desatualizado)" : ""}</b></p>
       </header>

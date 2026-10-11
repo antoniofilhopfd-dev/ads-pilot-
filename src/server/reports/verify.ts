@@ -70,6 +70,9 @@ export async function verifyXlsx(buf: Buffer, r: Report): Promise<Verification> 
   const resumoText = resumo ? resumo.getSheetValues().flat().map(String).join(" ") : "";
   v.check(resumoText.includes(r.meta.organization), "Resumo identifica a organização", "Resumo sem organização");
   v.check(!r.meta.isDemo || resumoText.includes("SIMULADOS"), "Aviso de dados simulados presente (quando aplicável)", "Falta aviso de dados simulados");
+  // logo: presente exatamente quando a organização tem uma
+  const imgs = resumo?.getImages().length ?? 0;
+  v.check(r.meta.logo ? imgs === 1 : imgs === 0, r.meta.logo ? "Logo da empresa presente no Resumo" : "Sem logo (nenhuma cadastrada)", r.meta.logo ? "Logo cadastrada, mas ausente no XLSX" : "Imagem inesperada no XLSX");
   const dia = wb.getWorksheet("Diário");
   if (dia) v.check(dia.rowCount === r.daily.length + 1, "Aba Diário confere", `Diário: esperado ${r.daily.length + 1} linhas, obtido ${dia.rowCount}`);
   return v.done();
@@ -89,6 +92,11 @@ export async function verifyPdf(buf: Buffer, r: Report): Promise<Verification> {
       pages.push(norm(tc.items.map((it) => ("str" in it ? it.str : "")).join(" ")));
     }
     v.check(doc.numPages >= 1, `${doc.numPages} página(s)`, "PDF sem páginas");
+    // logo: a primeira página deve conter ao menos uma imagem quando a organização tem logo (e nenhuma quando não tem)
+    const ops = await (await doc.getPage(1)).getOperatorList();
+    const imgOps = new Set<number>([pdfjs.OPS.paintImageXObject, pdfjs.OPS.paintInlineImageXObject].filter((x) => x !== undefined) as number[]);
+    const hasImage = ops.fnArray.some((f: number) => imgOps.has(f));
+    v.check(r.meta.logo ? hasImage : !hasImage, r.meta.logo ? "Logo da empresa desenhada na primeira página" : "Sem logo (nenhuma cadastrada)", r.meta.logo ? "Logo cadastrada, mas ausente no PDF" : "Imagem inesperada no PDF");
   } catch (e) { v.check(false, "", `PDF ilegível: ${(e as Error).message}`); return v.done(); }
   const all = pages.join(" ");
   const has = (s: string) => all.includes(norm(clean(s)));

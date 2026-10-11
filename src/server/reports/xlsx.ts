@@ -14,6 +14,13 @@ export async function generateXlsx(r: Report): Promise<Buffer> {
   // ── Resumo
   const s = wb.addWorksheet("Resumo");
   s.columns = [{ width: 34 }, { width: 22 }, { width: 22 }, { width: 14 }];
+  if (m.logo) {
+    for (let i = 1; i <= 3; i++) s.getRow(i).height = 22;
+    const sc = Math.min(190 / m.logo.width, 62 / m.logo.height);
+    const id = wb.addImage({ buffer: m.logo.data as unknown as ExcelJS.Buffer, extension: m.logo.ext });
+    s.addImage(id, { tl: { col: 0, row: 0 }, ext: { width: m.logo.width * sc, height: m.logo.height * sc } });
+    s.addRows([[], [], []]); // espaço para a logo
+  }
   s.addRow([`AdsPilot — ${r.title}`]).font = { bold: true, size: 14, color: { argb: BLUE } };
   if (m.isDemo) { const row = s.addRow(["DADOS SIMULADOS (modo demonstração): não vêm da Meta."]); row.font = { bold: true, color: { argb: "FF7A5200" } }; }
   for (const [k, v] of [["Organização", m.organization], ["Cliente", m.client ?? "Todos"], ["Conta", m.account ?? "Todas"], ["Período", `${m.since.split("-").reverse().join("/")} a ${m.until.split("-").reverse().join("/")}`], ["Gerado em", m.generatedAt], ["Última sincronização", m.lastSyncedAt ?? "Nunca"]] as [string, string | Date][]) {

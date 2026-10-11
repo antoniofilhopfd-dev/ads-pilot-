@@ -14,6 +14,7 @@ import {
   varchar,
 } from "drizzle-orm/mysql-core";
 import { sql } from "drizzle-orm";
+import { customType } from "drizzle-orm/mysql-core";
 
 export const ROLES = ["admin", "manager", "analyst"] as const;
 export type Role = (typeof ROLES)[number];
@@ -379,3 +380,18 @@ export const memberAccountAccess = mysqlTable(
   },
   (t) => [primaryKey({ name: "member_acct_access_pk", columns: [t.organizationId, t.userId, t.adAccountId] }), index("member_acct_access_acct_idx").on(t.adAccountId)],
 );
+
+// ───────────── Logo da organização (usada em relatórios) ─────────────
+const mediumblob = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "mediumblob" });
+
+export const organizationLogos = mysqlTable("organization_logos", {
+  organizationId: varchar("organization_id", { length: 36 }).primaryKey().references(() => organizations.id, { onDelete: "cascade" }),
+  mime: mysqlEnum("mime", ["image/png", "image/jpeg"]).notNull(),
+  data: mediumblob("data").notNull(),
+  width: int("width").notNull(),
+  height: int("height").notNull(),
+  bytes: int("bytes").notNull(),
+  sha256: varchar("sha256", { length: 64 }).notNull(),
+  updatedBy: varchar("updated_by", { length: 36 }),
+  updatedAt: datetime("updated_at", { mode: "date", fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+});

@@ -16,6 +16,8 @@
 | Injeção | Drizzle parametrizado; sem SQL cru com entrada de usuário; CSV com neutralização de fórmulas | testes |
 | CSRF | Server Actions (verificação de Origin do Next); replay com Origin falso recusado; OAuth `state` | E2E segurança |
 | Cabeçalhos | X-Frame-Options DENY, nosniff, Referrer-Policy, Permissions-Policy, HSTS (prod), CSP parcial | E2E segurança |
+| Acesso por conta | `Actor` com contas permitidas; filtro em todas as consultas; ações organizacionais negadas a restritos; lista vazia = nada | 11 testes + E2E |
+| Upload de logo | validação por conteúdo (PNG/JPEG), limites, sem SVG, servida com nosniff + CSP sandbox, isolada por organização | 8 testes + E2E |
 | Dependências | `npm audit --omit=dev` = 0; dev: 4 moderadas em `drizzle-kit`/esbuild (só desenvolvimento) | audit |
 | Segredos no repositório | varredura do histórico git: nenhum token/chave | grep histórico |
 

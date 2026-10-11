@@ -36,7 +36,7 @@ async function world() {
   await configureAccount(o.admin, clinica.id, { selected: true, clientId: cClin });
   for (const a of [loja, clinica]) await syncAccount(o.admin, a.id, { now: NOW, sleep: async () => {} });
   const camps = await db.select().from(campaigns).where(eq(campaigns.organizationId, o.organizationId));
-  const campLoja = camps.find((c) => c.adAccountId === loja.id)!, campClin = camps.find((c) => c.adAccountId === clinica.id)!;
+  const campLoja = camps.find((c) => c.adAccountId === loja.id && c.name.startsWith("Remarketing"))!, campClin = camps.find((c) => c.adAccountId === clinica.id && c.name.startsWith("Agendamentos"))!;
   const opClin = (await prepareOperation(o.admin, { campaignId: campClin.id, type: "pause" }, { clientRequestId: "req-clinica-1" })).operationId;
   return { ...o, loja, clinica, cLoja, cClin, campLoja, campClin, opClin };
 }

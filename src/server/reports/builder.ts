@@ -7,6 +7,7 @@ import { accountCond, assertCan, type Actor } from "../context";
 import { getOverview, loadCampaigns, resolvePeriod } from "../insights";
 import { getHealth } from "../meta/health";
 import { listClients } from "../services/clients";
+import { getLogo } from "../services/logo";
 import { METHODOLOGY, narrate } from "./narrative";
 import { DEFAULT_SECTIONS, REPORT_TYPES, SECTIONS, TYPE_LABEL, type Fmt, type Kpi, type Report, type ReportConfig } from "./types";
 
@@ -88,12 +89,13 @@ export async function buildReport(actor: Actor, config: ReportConfig, now = new 
   }));
 
   const health = await getHealth(actor, now);
+  const logo = await getLogo(actor);
   const base: Report = {
     config, title: TYPE_LABEL[config.type],
     meta: {
       organization: org[0]?.name ?? "—", client: clientName(config.clientId ?? null), account: accountName, since: p.since, until: p.until, prevSince: p.prevSince, prevUntil: p.prevUntil,
       generatedAt: now, lastSyncedAt: ov.lastSyncedAt, stale: ov.stale, isDemo: ov.isDemo, currency: ov.currency, mixedCurrency: ov.mixedCurrency,
-      coverageSince: ov.coverageSince, prevComparable: ov.prevComparable, partialCurrent: ov.partialCurrent, hasData: t.spend !== null || t.impressions !== null,
+      coverageSince: ov.coverageSince, prevComparable: ov.prevComparable, partialCurrent: ov.partialCurrent, hasData: t.spend !== null || t.impressions !== null, logo,
     },
     kpis,
     daily: ov.daily.map((d) => ({ date: d.date, spend: d.spend, results: d.results, impressions: d.impressions, clicks: d.clicks })),

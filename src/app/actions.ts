@@ -313,3 +313,27 @@ export async function setMemberAccessAction(_: ActionResult, f: FormData): Promi
     return { ok: "Acesso atualizado." };
   });
 }
+
+// ───────────── Logo da empresa ─────────────
+import { deleteLogo, saveLogo } from "@/server/services/logo";
+
+export async function uploadLogoAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const file = f.get("logo");
+    if (!(file instanceof File) || file.size === 0) throw new AppError("validation", "Escolha um arquivo PNG ou JPEG.");
+    if (file.size > 1_000_000) throw new AppError("validation", "Arquivo grande demais (máximo 1 MB).");
+    await saveLogo(actor, Buffer.from(await file.arrayBuffer()));
+    revalidatePath("/app", "layout");
+    return { ok: "Logo atualizada. Ela aparecerá nos próximos relatórios." };
+  });
+}
+
+export async function deleteLogoAction(_: ActionResult, __: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await deleteLogo(actor);
+    revalidatePath("/app", "layout");
+    return { ok: "Logo removida." };
+  });
+}

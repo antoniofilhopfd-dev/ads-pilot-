@@ -25,7 +25,7 @@ async function world(label: string) {
   const cli = await createClient(o.admin, { name: `Cliente ${label}` });
   for (const a of accts) { await configureAccount(o.admin, a.id, { selected: true, clientId: a.name.includes("Loja") ? cli : null }); await syncAccount(o.admin, a.id, { now: NOW, sleep: async () => {} }); }
   const loja = accts.find((a) => a.name.includes("Loja"))!;
-  const [camp] = await db.select().from(campaigns).where(eq(campaigns.adAccountId, loja.id));
+  const camp = (await db.select().from(campaigns).where(eq(campaigns.adAccountId, loja.id))).find((c) => c.name.startsWith("Remarketing"))!;
   const prep = await prepareOperation(o.admin, { campaignId: camp.id, type: "pause" });
   const tpl = await saveTemplate(o.admin, `Modelo ${label}`, cfg());
   const tok = await createMcpToken(o.admin, { name: `Token ${label}`, scopes: ["read"], ttlDays: 30 });

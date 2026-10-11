@@ -184,7 +184,8 @@ export function createMcpServer(auth: McpAuth): McpServer {
   def("get_report", "Obter relatório", "Gera o relatório (mesmo conteúdo da tela/PDF): indicadores, comparação, campanhas, alertas, FATOS, HIPÓTESES (não comprovadas), RECOMENDAÇÕES, limitações e metodologia.", "read",
     { type: z.enum(REPORT_TYPES).default("executive"), days: Days, ...Scope, sections: z.array(z.enum(SECTIONS)).optional() }, async (a, { actor }) => {
       const r = await buildReport(actor, { type: a.type, days: a.days, clientId: a.clientId, accountId: a.accountId, sections: a.sections?.length ? a.sections : DEFAULT_SECTIONS[a.type] });
-      return { data: { title: r.title, meta: r.meta, kpis: r.kpis, campaigns: r.campaigns.map((c) => ({ id: c.id, name: clean(c.name), status: c.effectiveStatus, metrics: c.totals })), variations: r.variations, breakdown: r.breakdown, alerts: r.alerts.map((x) => ({ ...x, title: clean(x.title) })),
+      const { logo, ...meta } = r.meta;
+      return { data: { title: r.title, meta: { ...meta, hasCompanyLogo: !!logo }, kpis: r.kpis, campaigns: r.campaigns.map((c) => ({ id: c.id, name: clean(c.name), status: c.effectiveStatus, metrics: c.totals })), variations: r.variations, breakdown: r.breakdown, alerts: r.alerts.map((x) => ({ ...x, title: clean(x.title) })),
         facts: r.facts, hypotheses: r.hypotheses, recommendations: r.recommendations, limitations: r.limitations, methodology: r.methodology } };
     });
 

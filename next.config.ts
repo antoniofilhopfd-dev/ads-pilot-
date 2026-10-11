@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: { serverActions: { bodySizeLimit: "2mb" } },
   serverExternalPackages: ["mysql2", "pdfkit", "pdfjs-dist", "exceljs"],
   async headers() {
     return [
@@ -18,6 +19,8 @@ const nextConfig: NextConfig = {
           ...(process.env.NODE_ENV === "production" ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }] : []),
         ],
       },
+      // Logo enviada por usuários: CSP mais restritiva que a global (nada executa, nem se o arquivo fosse malicioso).
+      { source: "/api/logo", headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; sandbox" }] },
     ];
   },
 };

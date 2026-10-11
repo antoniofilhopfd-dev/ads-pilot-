@@ -27,6 +27,13 @@ export function generatePdf(r: Report): Promise<Buffer> {
     const h2 = (s: string) => { need(60); doc.moveDown(0.8); doc.font("Helvetica-Bold").fontSize(12).fillColor(C.blue); txt(s, { width: W }); doc.moveDown(0.3); doc.font("Helvetica").fontSize(9).fillColor(C.text); };
     const bullets = (items: string[], label?: string) => { for (const it of items) { need(30); doc.font("Helvetica").fontSize(9).fillColor(C.text); txt(`${label ? label + ": " : "• "}${it}`, { width: W, indent: 0 }); doc.moveDown(0.25); } };
 
+    // ── Logo da empresa (primeira página)
+    if (m.logo) {
+      const sc = Math.min(170 / m.logo.width, 52 / m.logo.height), w = m.logo.width * sc, h = m.logo.height * sc;
+      doc.image(m.logo.data, M.l, 56, { width: w, height: h });
+      doc.y = 56 + h + 10;
+    }
+
     // ── Capa/topo
     doc.font("Helvetica-Bold").fontSize(20).fillColor(C.blue); txt(r.title, { width: W });
     doc.font("Helvetica").fontSize(10).fillColor(C.muted);
@@ -129,12 +136,13 @@ export function generatePdf(r: Report): Promise<Buffer> {
       doc.switchToPage(range.start + i);
       const prev = { ...doc.page.margins };
       doc.page.margins = { top: 0, bottom: 0, left: M.l, right: M.r };
-      doc.font("Helvetica-Bold").fontSize(9).fillColor(C.blue); doc.text("AdsPilot", M.l, 28, { width: 100, lineBreak: false });
+      if (m.logo && i > 0) { const sc = Math.min(90 / m.logo.width, 20 / m.logo.height), w = m.logo.width * sc, h = m.logo.height * sc; doc.image(m.logo.data, M.l, 24, { width: w, height: h }); }
+      else if (!m.logo) { doc.font("Helvetica-Bold").fontSize(9).fillColor(C.blue); doc.text("AdsPilot", M.l, 28, { width: 100, lineBreak: false }); }
       doc.font("Helvetica").fillColor(C.muted).text(clean(`${r.title} · ${m.organization}`), M.l + 100, 28, { width: W - 100, align: "right", lineBreak: false });
       doc.moveTo(M.l, 48).lineTo(M.l + W, 48).strokeColor(C.line).stroke();
       const fy = doc.page.height - 38;
       doc.moveTo(M.l, fy - 8).lineTo(M.l + W, fy - 8).strokeColor(C.line).stroke();
-      doc.fontSize(8).fillColor(C.muted).text(clean(`${m.isDemo ? "DADOS SIMULADOS · " : ""}Última sincronização: ${dt(m.lastSyncedAt)} · Gerado em ${dt(m.generatedAt)}`), M.l, fy, { width: W - 90, lineBreak: false });
+      doc.fontSize(8).fillColor(C.muted).text(clean(`AdsPilot · ${m.isDemo ? "DADOS SIMULADOS · " : ""}Última sincronização: ${dt(m.lastSyncedAt)} · Gerado em ${dt(m.generatedAt)}`), M.l, fy, { width: W - 90, lineBreak: false });
       doc.text(`Página ${i + 1} de ${range.count}`, M.l + W - 90, fy, { width: 90, align: "right", lineBreak: false });
       doc.page.margins = prev;
     }
