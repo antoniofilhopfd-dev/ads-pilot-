@@ -1,0 +1,10 @@
+$ npm run test:backup
+restauração concluída em 'adspilot_restore_test'
+✔ restaurar sobre banco existente é recusado
+✔ backup adulterado é recusado
+✔ migrações aplicadas sobre o restaurado sem erro (idempotentes)
+✔ 21 tabelas, 7970 linhas: contagem e CHECKSUM idênticos entre original e restaurado
+✔ senha do usuário restaurado confere (hash íntegro)
+✔ token da Meta restaurado abre com a ENCRYPTION_KEY original
+✔ com outra chave o token NÃO abre (guarde a chave em cofre separado)
+BACKUP/RESTAURAÇÃO OK  (./backups/adspilot-adspilot_dev-20261011T152823Z.sql.gz)

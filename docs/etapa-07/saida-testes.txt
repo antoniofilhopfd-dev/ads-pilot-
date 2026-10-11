@@ -1,0 +1,4 @@
+$ npx vitest run
+ Test Files  10 passed (10)
+      Tests  100 passed (100)
+   Duration  28.94s (tests 69%, import 26%, transform 5%)
