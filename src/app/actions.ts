@@ -9,6 +9,8 @@ import { createSession, destroySession, login, register, requestPasswordReset, r
 import { createClient, deleteClient, updateClient } from "@/server/services/clients";
 import { addMemberByEmail, changeMemberRole, removeMember, renameOrganization } from "@/server/services/organizations";
 import { listUserOrganizations } from "@/server/context";
+import { configureAccount, connectDemo, disconnect, discoverAccounts } from "@/server/meta/connection";
+import { syncAccount, syncAllSelected } from "@/server/meta/sync";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
@@ -123,5 +125,63 @@ export async function renameOrgAction(_: ActionResult, f: FormData): Promise<Act
     await renameOrganization(actor, str(f, "name"));
     revalidatePath("/app", "layout");
     return { ok: "Organização atualizada." };
+  });
+}
+
+// ───────────── Meta / sincronização ─────────────
+export async function connectDemoAction(_: ActionResult, __: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await connectDemo(actor);
+    revalidatePath("/app", "layout");
+    return { ok: "Modo demonstração ativado. Selecione as contas e sincronize." };
+  });
+}
+
+export async function disconnectAction(_: ActionResult, __: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await disconnect(actor);
+    revalidatePath("/app", "layout");
+    return { ok: "Conexão removida." };
+  });
+}
+
+export async function refreshAccountsAction(_: ActionResult, __: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await discoverAccounts(actor);
+    revalidatePath("/app/integracoes");
+    return { ok: "Lista de contas atualizada." };
+  });
+}
+
+export async function configureAccountAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await configureAccount(actor, str(f, "accountId"), { selected: f.get("selected") === "on", clientId: str(f, "clientId") || null });
+    revalidatePath("/app", "layout");
+    return { ok: "Conta atualizada." };
+  });
+}
+
+export async function syncAccountAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const r = await syncAccount(actor, str(f, "accountId"), { trigger: "manual" });
+    revalidatePath("/app", "layout");
+    if (r.status === "failed") return { error: `Sincronização falhou: ${r.errorMessage ?? r.errorCode}` };
+    return { ok: r.status === "partial" ? `Sincronização parcial: ${r.errorMessage}` : "Sincronização concluída." };
+  });
+}
+
+export async function syncAllAction(_: ActionResult, __: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const res = await syncAllSelected(actor, { trigger: "manual" });
+    revalidatePath("/app", "layout");
+    if (res.length === 0) return { error: "Nenhuma conta selecionada para sincronizar." };
+    const bad = res.filter((r) => "error" in r || ("status" in r && r.status === "failed")).length;
+    return bad ? { error: `${bad} de ${res.length} conta(s) com falha. Veja o histórico.` } : { ok: `${res.length} conta(s) sincronizada(s).` };
   });
 }

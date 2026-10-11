@@ -6,7 +6,7 @@ export type FormState = { error?: string; ok?: string } | undefined;
 
 // Envia via onSubmit (e não via `action`) para o React 19 não limpar os campos após um erro.
 // Em caso de sucesso com mensagem `ok`, o formulário é limpo.
-export function Form({ action, children, submit, className = "space-y-4", variant = "primary" }: { action: (s: FormState, f: FormData) => Promise<FormState>; children: ReactNode; submit: string; className?: string; variant?: keyof typeof btnCls }) {
+export function Form({ action, children, submit, className = "space-y-4", variant = "primary", confirm }: { action: (s: FormState, f: FormData) => Promise<FormState>; children?: ReactNode; submit: string; className?: string; variant?: keyof typeof btnCls; confirm?: string }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -18,6 +18,7 @@ export function Form({ action, children, submit, className = "space-y-4", varian
       className={className}
       onSubmit={(e) => {
         e.preventDefault();
+        if (confirm && !window.confirm(confirm)) return;
         const data = new FormData(e.currentTarget);
         startTransition(() => formAction(data));
       }}
