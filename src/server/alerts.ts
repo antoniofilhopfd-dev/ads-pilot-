@@ -5,6 +5,7 @@ import { adAccounts, alertSettings, alerts, DEFAULT_ALERT_CONFIG, memberships, n
 import { AppError } from "@/lib/errors";
 import { campaignFindings } from "@/lib/analysis";
 import { audit } from "./audit";
+import { enqueueAlertMessages } from "./notify/evolution";
 import { loadFacts } from "./analysis";
 import { accountCond, assertCan, getActor, type Actor } from "./context";
 import { listBudgets } from "./budget";
@@ -109,7 +110,8 @@ export async function evaluateAlerts(organizationId: string, now = new Date()) {
       await db.update(alerts).set({ lastNotifiedAt: now }).where(eq(alerts.id, n.alertId));
     }
   }
-  return { opened, updated, resolved, notified, active: cands.length };
+  const queued = await enqueueAlertMessages(organizationId, toNotify.map((n) => ({ alertId: n.alertId, severity: n.row.severity, title: n.row.title, entityName: n.row.entityName, message: n.row.message, adAccountId: n.row.adAccountId })), now);
+  return { opened, updated, resolved, notified, queued, active: cands.length };
 }
 
 // ───────────── Leitura e ação (com visibilidade por conta) ─────────────

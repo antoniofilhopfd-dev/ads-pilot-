@@ -11,7 +11,7 @@ const NAV: { group: string; items: { href: string; label: string }[] }[] = [
   { group: "Biblioteca", items: [{ href: "/app/publicos", label: "Públicos" }, { href: "/app/criativos", label: "Criativos" }, { href: "/app/rascunhos", label: "Rascunhos" }, { href: "/app/pastas", label: "Pastas e etiquetas" }] },
   { group: "Ferramentas", items: [{ href: "/app/utm", label: "UTMs" }, { href: "/app/checklists", label: "Checklists" }, { href: "/app/simuladores", label: "Simuladores" }, { href: "/app/experimentos", label: "Experimentos" }] },
   { group: "Análise", items: [{ href: "/app/alertas", label: "Alertas" }, { href: "/app/diagnosticos", label: "Diagnósticos" }, { href: "/app/comparar", label: "Comparar" }, { href: "/app/relatorios", label: "Relatórios" }, { href: "/app/atividades", label: "Atividades" }] },
-  { group: "Sistema", items: [{ href: "/app/integracoes", label: "Integrações" }, { href: "/app/mcp", label: "Assistentes (MCP)" }, { href: "/app/equipe", label: "Equipe" }, { href: "/app/configuracoes", label: "Configurações" }] },
+  { group: "Sistema", items: [{ href: "/app/integracoes", label: "Integrações" }, { href: "/app/canais", label: "Canais de aviso" }, { href: "/app/mcp", label: "Assistentes (MCP)" }, { href: "/app/equipe", label: "Equipe" }, { href: "/app/configuracoes", label: "Configurações" }] },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {

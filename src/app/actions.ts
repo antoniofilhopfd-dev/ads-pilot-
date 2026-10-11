@@ -554,3 +554,27 @@ export async function prepareBatchAction(f: FormData) {
   revalidatePath("/app/operacoes");
   redirect(`/app/operacoes?lote=${ok}-${fail}${reasons.size ? `&motivo=${encodeURIComponent([...reasons][0].slice(0, 120))}` : ""}`);
 }
+
+// ───────────── Etapa 05 (v2): canais externos ─────────────
+import { addRecipient, removeRecipient } from "@/server/notify/recipients";
+import { dispatchOutbox, enqueueTest, evolutionConfig } from "@/server/notify/evolution";
+
+export async function addRecipientAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => { const { actor } = await requireActor(); await addRecipient(actor, { name: str(f, "name"), phone: str(f, "phone"), minSeverity: str(f, "gravidade") || "critical" }); revalidatePath("/app/canais"); return { ok: "Destinatário cadastrado." }; });
+}
+export async function removeRecipientAction(f: FormData) {
+  const { actor } = await requireActor(); await run(async () => removeRecipient(actor, str(f, "recipientId"))); revalidatePath("/app/canais");
+}
+export async function testRecipientAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    if (!canActor(actor, "budgets.manage")) throw new AppError("forbidden", "Você não tem permissão para esta ação.");
+    await enqueueTest(actor.organizationId, str(f, "recipientId"));
+    const r = await dispatchOutbox({ organizationId: actor.organizationId });
+    revalidatePath("/app/canais");
+    if (!evolutionConfig()) return { error: "Mensagem registrada, mas NÃO enviada: o canal WhatsApp não está configurado neste servidor." };
+    if (r.sent) return { ok: "Mensagem de teste enviada (confirme no aparelho)." };
+    if (r.uncertain) return { error: "Sem resposta da Evolution API: a mensagem pode ter sido enviada. Confirme no aparelho antes de tentar de novo." };
+    return { error: "Não foi possível enviar. Veja o histórico abaixo." };
+  });
+}

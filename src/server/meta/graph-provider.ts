@@ -33,9 +33,26 @@ export function mapGraphError(status: number, body: Json | undefined): MetaApiEr
   return new MetaApiError("unknown", msg, code);
 }
 
+// Percentual de uso informado pela Meta nos cabeçalhos X-App-Usage / X-Business-Use-Case-Usage (maior valor entre os campos conhecidos).
+export function usagePercent(headers: Pick<Headers, "get">): number | null {
+  let max: number | null = null;
+  const scan = (v: unknown) => {
+    if (typeof v === "number") max = Math.max(max ?? 0, v);
+    else if (Array.isArray(v)) v.forEach(scan);
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) if (["call_count", "total_cputime", "total_time", "acc_id_util_pct"].includes(k)) scan(x); else scan(x);
+  };
+  for (const h of ["x-app-usage", "x-business-use-case-usage", "x-ad-account-usage"]) {
+    const raw = headers.get(h); if (!raw) continue;
+    try { scan(JSON.parse(raw)); } catch { /* cabeçalho malformado: ignora */ }
+  }
+  return max;
+}
+export const THROTTLE_AT = 85;
+
 export class GraphApiProvider implements MetaProvider {
   readonly mode = "meta" as const;
-  constructor(private token: string, private fetchImpl: Fetch = fetch, private base = `https://graph.facebook.com/${GRAPH_VERSION}`) {}
+  lastUsage: number | null = null; // último uso observado (%)
+  constructor(private token: string, private fetchImpl: Fetch = fetch, private base = `https://graph.facebook.com/${GRAPH_VERSION}`, private sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))) {}
 
   private async get(path: string, params: Record<string, string>): Promise<Json> {
     const url = new URL(path.startsWith("http") ? path : `${this.base}/${path}`);
@@ -48,7 +65,10 @@ export class GraphApiProvider implements MetaProvider {
       throw new MetaApiError("transient", "Falha de rede ao contatar a Meta.");
     }
     const body = (await res.json().catch(() => undefined)) as Json | undefined;
+    this.lastUsage = usagePercent(res.headers);
     if (!res.ok || body?.error) throw mapGraphError(res.status, body);
+    // Perto do limite: espera antes da próxima chamada em vez de bater no bloqueio (o sync também tem retry com espera).
+    if (this.lastUsage !== null && this.lastUsage >= THROTTLE_AT) await this.sleep(Math.min(30_000, (this.lastUsage - THROTTLE_AT + 1) * 1000));
     return body ?? {};
   }
 
@@ -105,5 +125,27 @@ export class GraphApiProvider implements MetaProvider {
         results: hit ? num(hit.value) : null, resultType: hit ? type : null, purchaseValue: val ? num(val.value) : null,
       };
     });
+  }
+
+  // ── Leituras auxiliares (somente leitura; usadas pelo assistente e pela biblioteca) ──
+  async listPixels(acct: string): Promise<{ id: string; name: string; lastFiredAt: Date | null }[]> {
+    const rows = await this.paged(`${acct}/adspixels`, { fields: "id,name,last_fired_time" });
+    return rows.map((r) => ({ id: String(r.id), name: String(r.name ?? r.id), lastFiredAt: date(r.last_fired_time) }));
+  }
+  // Eventos recebidos pelo pixel (agregado por hora/evento). Sem dado ≠ zero: lista vazia significa que a Meta não devolveu eventos.
+  async getPixelEvents(pixelId: string, since: string): Promise<{ event: string; count: number }[]> {
+    const rows = await this.paged(`${pixelId}/stats`, { aggregation: "event", start_time: since });
+    const sums = new Map<string, number>();
+    for (const r of rows) for (const d of (Array.isArray(r.data) ? r.data : []) as { value?: string; count?: number }[]) if (d.value) sums.set(d.value, (sums.get(d.value) ?? 0) + (num(d.count) ?? 0));
+    return [...sums.entries()].map(([event, count]) => ({ event, count })).sort((a, b) => b.count - a.count);
+  }
+  async searchTargeting(q: string, type: "adinterest" | "adgeolocation" | "adworkposition" = "adinterest"): Promise<{ id: string; name: string; audienceSize: number | null }[]> {
+    if (!q.trim() || q.length > 100) throw new MetaApiError("unknown", "Termo de busca inválido.");
+    const body = await this.get("search", { type, q: q.trim(), limit: "25" });
+    return ((body.data as Json[]) ?? []).map((r) => ({ id: String(r.id ?? r.key), name: String(r.name), audienceSize: num(r.audience_size_upper_bound ?? r.audience_size) }));
+  }
+  async listCustomAudiences(acct: string): Promise<{ id: string; name: string; subtype: string | null; approximateCount: number | null }[]> {
+    const rows = await this.paged(`${acct}/customaudiences`, { fields: "id,name,subtype,approximate_count_lower_bound" });
+    return rows.map((r) => ({ id: String(r.id), name: String(r.name), subtype: (r.subtype as string) ?? null, approximateCount: num(r.approximate_count_lower_bound) }));
   }
 }

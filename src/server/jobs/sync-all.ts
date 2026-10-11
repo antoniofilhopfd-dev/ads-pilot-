@@ -5,10 +5,13 @@ import { logger } from "@/lib/logger";
 import { getActor } from "../context";
 import { syncAllSelected } from "../meta/sync";
 import { evaluateAlerts } from "../alerts";
+import { dispatchOutbox } from "../notify/evolution";
+import { renewExpiringTokens } from "../meta/oauth";
 
 // Sincroniza as contas selecionadas de todas as organizações com conexão ativa. Chamado pelo script
 // (`npm run sync`) e pela rota `POST /api/cron/sync`. Idempotente: a trava por conta impede sobreposição.
 export async function runScheduledSync() {
+  await renewExpiringTokens().catch((e) => logger.error("token_renew_job_failed", { error: e instanceof Error ? e.message : String(e) }));
   const conns = await db.select().from(metaConnections).where(eq(metaConnections.status, "active"));
   const out: { organizationId: string; synced: number; failed: number; error?: string }[] = [];
   for (const c of conns) {
@@ -24,5 +27,6 @@ export async function runScheduledSync() {
       out.push({ organizationId: c.organizationId, synced: 0, failed: 1, error: "falha ao sincronizar a organização" });
     }
   }
+  await dispatchOutbox().catch((e) => logger.error("outbox_dispatch_failed", { error: e instanceof Error ? e.message : String(e) }));
   return out;
 }

@@ -737,3 +737,43 @@ export const notifications = mysqlTable(
   },
   (t) => [index("notifications_user_idx").on(t.organizationId, t.userId, t.readAt, t.createdAt)],
 );
+
+// ═════════════ v2 · Etapa 05: canais de notificação externos ═════════════
+export const OUTBOX_STATUS = ["pending", "sending", "sent", "failed", "blocked", "uncertain"] as const;
+
+export const notificationRecipients = mysqlTable(
+  "notification_recipients",
+  {
+    id: id(),
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    channel: mysqlEnum("channel", ["whatsapp"]).notNull().default("whatsapp"),
+    name: varchar("name", { length: 80 }).notNull(),
+    phone: varchar("phone", { length: 20 }).notNull(), // somente dígitos com DDI (E.164 sem "+")
+    minSeverity: mysqlEnum("min_severity", ALERT_SEVERITY).notNull().default("critical"),
+    active: boolean("active").notNull().default(true),
+    createdBy: varchar("created_by", { length: 36 }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("recipients_org_phone_uq").on(t.organizationId, t.channel, t.phone)],
+);
+
+// Caixa de saída: cada mensagem tem chave de idempotência (a mesma notificação nunca é enviada duas vezes).
+export const outbox = mysqlTable(
+  "outbox",
+  {
+    id: id(),
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    channel: mysqlEnum("channel", ["whatsapp"]).notNull(),
+    recipientId: varchar("recipient_id", { length: 36 }).notNull().references(() => notificationRecipients.id, { onDelete: "cascade" }),
+    idempotencyKey: varchar("idempotency_key", { length: 120 }).notNull(),
+    body: varchar("body", { length: 1000 }).notNull(),
+    status: mysqlEnum("status", OUTBOX_STATUS).notNull().default("pending"),
+    attempts: int("attempts").notNull().default(0),
+    lastError: varchar("last_error", { length: 300 }),
+    providerMessageId: varchar("provider_message_id", { length: 100 }),
+    nextAttemptAt: datetime("next_attempt_at", { mode: "date", fsp: 3 }),
+    sentAt: datetime("sent_at", { mode: "date", fsp: 3 }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("outbox_idem_uq").on(t.organizationId, t.idempotencyKey), index("outbox_status_idx").on(t.status, t.nextAttemptAt)],
+);
