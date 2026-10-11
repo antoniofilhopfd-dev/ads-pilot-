@@ -337,3 +337,39 @@ export async function deleteLogoAction(_: ActionResult, __: FormData): Promise<A
     return { ok: "Logo removida." };
   });
 }
+
+// ───────────── Etapa 03 (v2): orçamentos e metas ─────────────
+import { deleteBudgetPlan, setBudgetPlan } from "@/server/budget";
+import { deleteGoal, setGoal } from "@/server/goals";
+
+const num = (f: FormData, k: string) => Number(String(f.get(k) ?? "").replace(/\./g, "").replace(",", "."));
+const target = (f: FormData) => { const [scope, ...id] = str(f, "alvo").split(":"); return { scope, scopeId: id.join(":") }; };
+
+export async function saveBudgetAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const t = target(f);
+    await setBudgetPlan(actor, { ...t, period: str(f, "periodo"), amount: num(f, "valor"), note: str(f, "nota") || undefined,
+      milestones: str(f, "marcos") ? str(f, "marcos").split(/[,\s;]+/).filter(Boolean).map(Number) : undefined });
+    revalidatePath("/app/orcamentos");
+    return { ok: "Orçamento planejado salvo." };
+  });
+}
+export async function deleteBudgetAction(f: FormData) {
+  const { actor } = await requireActor();
+  await run(async () => deleteBudgetPlan(actor, str(f, "planId")));
+  revalidatePath("/app/orcamentos");
+}
+export async function saveGoalAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await setGoal(actor, { ...target(f), metric: str(f, "metrica"), direction: str(f, "direcao"), target: num(f, "meta"), windowDays: Number(str(f, "janela") || 30), note: str(f, "nota") || undefined });
+    revalidatePath("/app/metas");
+    return { ok: "Meta salva." };
+  });
+}
+export async function deleteGoalAction(f: FormData) {
+  const { actor } = await requireActor();
+  await run(async () => deleteGoal(actor, str(f, "goalId")));
+  revalidatePath("/app/metas");
+}

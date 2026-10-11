@@ -4,17 +4,11 @@ import { ROLE_LABEL } from "@/server/permissions";
 import { requireActor } from "@/server/session";
 import { logoutAction, switchOrgAction } from "../actions";
 
-const NAV = [
-  { href: "/app", label: "Painel" },
-  { href: "/app/campanhas", label: "Campanhas" },
-  { href: "/app/operacoes", label: "Operações" },
-  { href: "/app/relatorios", label: "Relatórios" },
-  { href: "/app/clientes", label: "Clientes" },
-  { href: "/app/integracoes", label: "Integrações" },
-  { href: "/app/mcp", label: "Assistentes (MCP)" },
-  { href: "/app/equipe", label: "Equipe" },
-  { href: "/app/atividades", label: "Atividades" },
-  { href: "/app/configuracoes", label: "Configurações" },
+const NAV: { group: string; items: { href: string; label: string }[] }[] = [
+  { group: "Gestão", items: [{ href: "/app", label: "Painel" }, { href: "/app/campanhas", label: "Campanhas" }, { href: "/app/operacoes", label: "Operações" }, { href: "/app/clientes", label: "Clientes" }] },
+  { group: "Planejamento", items: [{ href: "/app/orcamentos", label: "Orçamentos" }, { href: "/app/metas", label: "Metas" }] },
+  { group: "Análise", items: [{ href: "/app/relatorios", label: "Relatórios" }, { href: "/app/atividades", label: "Atividades" }] },
+  { group: "Sistema", items: [{ href: "/app/integracoes", label: "Integrações" }, { href: "/app/mcp", label: "Assistentes (MCP)" }, { href: "/app/equipe", label: "Equipe" }, { href: "/app/configuracoes", label: "Configurações" }] },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -25,8 +19,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <aside className="bg-navy px-3 py-4 text-[#cbd5f5] md:fixed md:inset-y-0 md:w-56">
         <p className="px-2 pb-3 text-lg font-bold text-white md:pb-5">Ads<span className="text-[#a99af0]">Pilot</span></p>
         <nav aria-label="Principal" className="flex gap-1 overflow-x-auto md:block">
-          {NAV.map((n) => (
-            <NavLink key={n.href} href={n.href}>{n.label}</NavLink>
+          {NAV.map((g) => (
+            <div key={g.group} role="group" aria-label={g.group} className="flex gap-1 md:mb-3 md:block">
+              <p className="hidden px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-[#8c98c9] md:block">{g.group}</p>
+              {g.items.map((n) => <NavLink key={n.href} href={n.href}>{n.label}</NavLink>)}
+            </div>
           ))}
         </nav>
       </aside>

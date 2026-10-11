@@ -1,3 +1,6 @@
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db";
+import { campaigns } from "@/db/schema";
 import { listAccounts } from "./meta/connection";
 import { listClients } from "./services/clients";
 import { resolvePeriod } from "./insights";
@@ -14,4 +17,12 @@ export function parseFilters(sp: SP) {
 export async function filterOptions(actor: Actor) {
   const [clients, accounts] = await Promise.all([listClients(actor), listAccounts(actor)]);
   return { clients: clients.map((c) => ({ id: c.id, name: c.name })), accounts: accounts.filter((a) => a.isSelected).map((a) => ({ id: a.id, name: a.name })) };
+}
+
+// Opções de alvo (clientes, contas, campanhas) respeitando o acesso do ator.
+export async function targetOptions(actor: Actor, withClients = true) {
+  const base = await filterOptions(actor);
+  const ids = base.accounts.map((a) => a.id);
+  const camps = ids.length ? await db.select({ id: campaigns.id, name: campaigns.name }).from(campaigns).where(and(eq(campaigns.organizationId, actor.organizationId), inArray(campaigns.adAccountId, ids))).orderBy(campaigns.name) : [];
+  return { clients: withClients && actor.allowedAccountIds === null ? base.clients : [], accounts: base.accounts, campaigns: camps };
 }
