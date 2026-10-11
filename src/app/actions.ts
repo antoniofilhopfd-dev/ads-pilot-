@@ -539,3 +539,18 @@ export async function saveAlertConfigAction(_: ActionResult, f: FormData): Promi
 export async function markReadAction() {
   const { actor } = await requireActor(); await markNotificationsRead(actor); revalidatePath("/app", "layout");
 }
+
+// Lote: PREPARA uma operação por campanha (cada uma segue o fluxo normal: conferir atual × novo, confirmar e verificar). Nada é executado aqui.
+export async function prepareBatchAction(f: FormData) {
+  const { actor } = await requireActor();
+  const type = str(f, "type");
+  const ids = [...new Set(f.getAll("ids").map(String))].slice(0, 50);
+  let ok = 0, fail = 0;
+  const reasons = new Set<string>();
+  for (const id of ids) {
+    const r = await run(async () => { await prepareOperation(actor, { campaignId: id, type }); });
+    if (r?.error) { fail++; reasons.add(r.error); } else ok++;
+  }
+  revalidatePath("/app/operacoes");
+  redirect(`/app/operacoes?lote=${ok}-${fail}${reasons.size ? `&motivo=${encodeURIComponent([...reasons][0].slice(0, 120))}` : ""}`);
+}

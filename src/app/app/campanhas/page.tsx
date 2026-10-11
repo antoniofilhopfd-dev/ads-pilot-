@@ -8,6 +8,8 @@ import { getConnection } from "@/server/meta/connection";
 import { listCampaigns, type CampaignRow } from "@/server/insights";
 import { filterOptions, parseFilters, one, type SP } from "@/server/params";
 import { requireActor } from "@/server/session";
+import { canActor } from "@/server/context";
+import { prepareBatchAction } from "../../actions";
 
 export const metadata = { title: "Campanhas — AdsPilot" };
 
@@ -38,6 +40,7 @@ export default async function Campanhas({ searchParams }: { searchParams: Promis
   ]);
   const base = { colunas: colsParam, ...(f.clientId ? { cliente: f.clientId } : {}), ...(f.accountId ? { conta: f.accountId } : {}), dias: f.dias, ...(one(sp.q) ? { q: one(sp.q)! } : {}), ...(one(sp.status) ? { status: one(sp.status)! } : {}), ...(one(sp.objetivo) ? { objetivo: one(sp.objetivo)! } : {}) };
   const link = (extra: Record<string, string>) => `/app/campanhas?${new URLSearchParams({ ...base, ordem: sort, dir, ...extra }).toString()}`;
+  const canWrite = canActor(actor, "campaigns.write");
   const ctxQuery = new URLSearchParams({ ...(f.clientId ? { cliente: f.clientId } : {}), ...(f.accountId ? { conta: f.accountId } : {}), dias: f.dias }).toString();
 
   return (
@@ -65,10 +68,12 @@ export default async function Campanhas({ searchParams }: { searchParams: Promis
       {res.total === 0 ? (
         <EmptyState title="Nenhuma campanha encontrada" action={<Link href="/app/integracoes" className={btnCls.secondary}>Ver Integrações</Link>}>Ajuste os filtros, ou sincronize as contas selecionadas em Integrações.</EmptyState>
       ) : (
+        <form action={prepareBatchAction}>
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead>
               <tr>
+                {canWrite && <th scope="col" className="w-8 border-b border-line px-3 py-2"><span className="sr-only">Selecionar</span></th>}
                 <th scope="col" aria-sort={sort === "name" ? (dir === "asc" ? "ascending" : "descending") : "none"} className="border-b border-line px-3 py-2 text-left text-xs font-medium text-muted"><Link className="hover:text-ink" href={link({ ordem: "name", dir: sort === "name" && dir === "desc" ? "asc" : "desc" })}>Campanha{sort === "name" ? (dir === "asc" ? " ▲" : " ▼") : ""}</Link></th>
                 {chosen.map((c) => (
                   <th key={c.key} scope="col" aria-sort={sort === c.key ? (dir === "asc" ? "ascending" : "descending") : "none"} className={`border-b border-line px-3 py-2 text-xs font-medium text-muted ${c.right ? "text-right" : "text-left"}`}>
@@ -79,12 +84,20 @@ export default async function Campanhas({ searchParams }: { searchParams: Promis
             <tbody>
               {res.rows.map((c) => (
                 <tr key={c.id}>
+                  {canWrite && <Td><input type="checkbox" name="ids" value={c.id} aria-label={`Selecionar ${c.name}`} /></Td>}
                   <Td><Link className="font-medium hover:underline" href={`/app/campanhas/${c.id}?${ctxQuery}`}>{c.name}</Link><p className="text-xs text-muted">{c.accountName}</p></Td>
                   {chosen.map((col) => <Td key={col.key} right={col.right}>{col.cell(c)}</Td>)}
                 </tr>
               ))}
             </tbody>
           </table>
+          {canWrite && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-line px-4 py-3 text-sm">
+              <span className="text-muted">Selecionadas:</span>
+              <button name="type" value="pause" className={btnCls.secondary}>Preparar pausa</button>
+              <button name="type" value="activate" className={btnCls.secondary}>Preparar reativação</button>
+              <span className="text-xs text-muted">Só prepara: cada campanha precisa ser confirmada em Operações.</span>
+            </div>)}
           <div className="flex items-center justify-between px-4 py-3 text-sm text-muted">
             <span>Página {res.page} de {res.pages} · “—” = a Meta não informou o dado</span>
             <span className="flex gap-2">
@@ -93,6 +106,7 @@ export default async function Campanhas({ searchParams }: { searchParams: Promis
             </span>
           </div>
         </Card>
+        </form>
       )}
     </>
   );

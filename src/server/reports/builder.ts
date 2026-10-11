@@ -7,6 +7,7 @@ import { accountCond, assertCan, type Actor } from "../context";
 import { getOverview, loadCampaigns, resolvePeriod } from "../insights";
 import { getHealth } from "../meta/health";
 import { listClients } from "../services/clients";
+import { listAlerts } from "../alerts";
 import { getLogo } from "../services/logo";
 import { METHODOLOGY, narrate } from "./narrative";
 import { DEFAULT_SECTIONS, REPORT_TYPES, SECTIONS, TYPE_LABEL, type Fmt, type Kpi, type Report, type ReportConfig } from "./types";
@@ -53,6 +54,10 @@ export async function buildReport(actor: Actor, config: ReportConfig, now = new 
     kpi("cpm", "CPM", "money", t.cpm, pv.cpm, cmp, true),
     kpi("roas", "ROAS", "ratio", t.roas, pv.roas, cmp),
   ];
+  // Indicadores por TIPO de resultado: só aparecem quando há dado desse tipo (nunca como 0).
+  if (t.leads !== null) kpis.push(kpi("leads", "Leads", "int", t.leads, pv.leads, cmp), kpi("cpl", "CPL (custo por lead)", "money", t.cpl, pv.cpl, cmp, true));
+  if (t.purchases !== null) kpis.push(kpi("purchases", "Compras", "int", t.purchases, pv.purchases, cmp), kpi("cpa", "CPA (custo por compra)", "money", t.cpa, pv.cpa, cmp, true));
+  if (t.conversionRate !== null) kpis.push(kpi("conversionRate", "Taxa de conversão (resultados ÷ cliques)", "pct", t.conversionRate, pv.conversionRate, cmp));
 
   // variações relevantes: ≥ 20% e base mínima, nas métricas gasto e custo por resultado
   const variations: Report["variations"] = [];
@@ -88,6 +93,9 @@ export async function buildReport(actor: Actor, config: ReportConfig, now = new 
     at: o.at, what: `${OPN[o.type]}: ${o.campaign}${o.type === "set_daily_budget" && o.params.dailyBudget ? ` → ${o.params.dailyBudget.toFixed(2)}` : ""}`, who: o.who, mode: o.mode, result: o.status,
   }));
 
+  // Alertas persistidos (abertos/reconhecidos) entram na seção de alertas, limitados ao escopo do relatório.
+  const stored = (await listAlerts(actor)).filter((a) => (!config.accountId || a.adAccountId === config.accountId));
+  const alertItems: Report["alerts"] = [...ov.attention, ...stored.map((a) => ({ tone: (a.severity === "critical" ? "danger" : "warn") as "danger" | "warn", title: `${a.title}: ${a.entityName}`, detail: a.detail.message, href: a.entityType === "campaign" ? `/app/campanhas/${a.entityId}` : "/app/alertas" }))];
   const health = await getHealth(actor, now);
   const logo = await getLogo(actor);
   const base: Report = {
@@ -99,7 +107,7 @@ export async function buildReport(actor: Actor, config: ReportConfig, now = new 
     },
     kpis,
     daily: ov.daily.map((d) => ({ date: d.date, spend: d.spend, results: d.results, impressions: d.impressions, clicks: d.clicks })),
-    campaigns: allCamps, variations: variations.slice(0, 10), breakdown, budget, alerts: ov.attention, changes,
+    campaigns: allCamps, variations: variations.slice(0, 10), breakdown, budget, alerts: alertItems, changes,
     health: { state: health.state, instructions: health.instructions, accounts: health.accounts.map((a) => ({ name: a.name, lastSuccess: a.lastSuccess?.at ?? null, stale: a.stale, lastStatus: a.lastAttempt?.status ?? null })) },
     facts: [], hypotheses: [], recommendations: [], limitations: [], methodology: METHODOLOGY,
   };

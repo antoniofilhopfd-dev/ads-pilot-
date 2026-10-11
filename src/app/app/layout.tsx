@@ -2,6 +2,7 @@ import Link from "next/link";
 import { NavLink } from "@/components/nav-link";
 import { ROLE_LABEL } from "@/server/permissions";
 import { requireActor } from "@/server/session";
+import { unreadCount } from "@/server/alerts";
 import { logoutAction, switchOrgAction } from "../actions";
 
 const NAV: { group: string; items: { href: string; label: string }[] }[] = [
@@ -9,12 +10,13 @@ const NAV: { group: string; items: { href: string; label: string }[] }[] = [
   { group: "Planejamento", items: [{ href: "/app/orcamentos", label: "Orçamentos" }, { href: "/app/metas", label: "Metas" }] },
   { group: "Biblioteca", items: [{ href: "/app/publicos", label: "Públicos" }, { href: "/app/criativos", label: "Criativos" }, { href: "/app/rascunhos", label: "Rascunhos" }, { href: "/app/pastas", label: "Pastas e etiquetas" }] },
   { group: "Ferramentas", items: [{ href: "/app/utm", label: "UTMs" }, { href: "/app/checklists", label: "Checklists" }, { href: "/app/simuladores", label: "Simuladores" }, { href: "/app/experimentos", label: "Experimentos" }] },
-  { group: "Análise", items: [{ href: "/app/relatorios", label: "Relatórios" }, { href: "/app/atividades", label: "Atividades" }] },
+  { group: "Análise", items: [{ href: "/app/alertas", label: "Alertas" }, { href: "/app/diagnosticos", label: "Diagnósticos" }, { href: "/app/comparar", label: "Comparar" }, { href: "/app/relatorios", label: "Relatórios" }, { href: "/app/atividades", label: "Atividades" }] },
   { group: "Sistema", items: [{ href: "/app/integracoes", label: "Integrações" }, { href: "/app/mcp", label: "Assistentes (MCP)" }, { href: "/app/equipe", label: "Equipe" }, { href: "/app/configuracoes", label: "Configurações" }] },
 ];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, actor, orgs } = await requireActor();
+  const unread = await unreadCount(actor);
   return (
     <div className="min-h-screen md:flex">
       <a href="#conteudo" className="sr-only z-50 rounded-md bg-surface px-3 py-2 text-sm font-medium text-brand focus:not-sr-only focus:absolute focus:left-2 focus:top-2">Pular para o conteúdo</a>
@@ -40,6 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </form>
           <span className="flex-1" />
           {actor.allowedAccountIds !== null && <span className="rounded-full bg-[#fbf1dc] px-2.5 py-1 text-xs font-medium text-[#7a5200]">Acesso restrito a {actor.allowedAccountIds.length} conta(s)</span>}
+          <Link href="/app/notificacoes" className="relative rounded-md border border-line px-2.5 py-1.5 text-sm text-brand hover:bg-canvas" aria-label={`Notificações${unread ? `: ${unread} não lida(s)` : ""}`}>🔔{unread > 0 && <span className="ml-1 rounded-full bg-danger px-1.5 text-xs font-semibold text-white">{unread}</span>}</Link>
           <Link href="/app/conta" className="text-sm text-muted hover:text-ink hover:underline">{user.name} · {ROLE_LABEL[actor.role]}</Link>
           <form action={logoutAction}><button className="rounded-md border border-line px-3 py-1.5 text-sm text-brand hover:bg-canvas">Sair</button></form>
         </header>

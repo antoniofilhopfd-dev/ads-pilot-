@@ -1,17 +1,21 @@
 import Link from "next/link";
-import { Badge, Card, EmptyState, PageHeader, Td, Th } from "@/components/ui";
+import { Alert, Badge, Card, EmptyState, PageHeader, Td, Th } from "@/components/ui";
+import { one, type SP } from "@/server/params";
 import { OP_LABEL, OPSTATUS } from "@/lib/labels";
 import { listOperations } from "@/server/meta/operations";
 import { requireActor } from "@/server/session";
 
 export const metadata = { title: "Operações — AdsPilot" };
 
-export default async function Operacoes() {
+export default async function Operacoes({ searchParams }: { searchParams: Promise<SP> }) {
+  const sp = await searchParams;
+  const lote = /^(\d+)-(\d+)$/.exec(one(sp.lote) ?? "");
   const { actor } = await requireActor();
   const rows = await listOperations(actor);
   return (
     <>
       <PageHeader title="Operações" subtitle="Histórico de alterações feitas (ou tentadas) em campanhas. Cada operação é verificada no estado remoto." />
+      {lote && <div className="mb-4"><Alert tone={lote[2] === "0" ? "success" : "info"}>{lote[1]} operação(ões) preparada(s) — abra cada uma abaixo para conferir e confirmar. {lote[2] !== "0" && `${lote[2]} campanha(s) não puderam ser preparadas${one(sp.motivo) ? `: ${one(sp.motivo)}` : "."}`}</Alert></div>}
       {rows.length === 0 ? <EmptyState title="Nenhuma operação registrada">Abra uma campanha e use “Ações” para pausar, reativar ou alterar o orçamento.</EmptyState> : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-sm">
