@@ -18,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen md:flex">
       <a href="#conteudo" className="sr-only z-50 rounded-md bg-surface px-3 py-2 text-sm font-medium text-brand focus:not-sr-only focus:absolute focus:left-2 focus:top-2">Pular para o conteúdo</a>
-      <aside className="bg-navy px-3 py-4 text-[#cbd5f5] md:fixed md:inset-y-0 md:w-56">
+      <aside className="bg-navy px-3 py-4 text-[#cbd5f5] md:fixed md:inset-y-0 md:w-56 md:overflow-y-auto">
         <p className="px-2 pb-3 text-lg font-bold text-white md:pb-5">Ads<span className="text-[#a99af0]">Pilot</span></p>
         <nav aria-label="Principal" className="flex gap-1 overflow-x-auto md:block">
           {NAV.map((g) => (

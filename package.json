@@ -14,7 +14,7 @@
     "backup": "bash scripts/backup.sh",
     "test:backup": "bash scripts/backup-restore-test.sh",
     "bench": "tsx --env-file=.env scripts/bench.ts",
-    "e2e": "for s in e2e e2e-conta e2e-meta e2e-ops e2e-reports e2e-mcp e2e-security; do tsx --env-file=.env scripts/$s.ts || exit 1; done",
+    "e2e": "for s in e2e e2e-conta e2e-meta e2e-ops e2e-reports e2e-mcp e2e-security e2e-acesso e2e-logo e2e-fundacao e2e-gestao; do tsx --env-file=.env scripts/$s.ts || exit 1; done",
     "a11y": "tsx scripts/a11y.ts",
     "lint": "eslint ."
   },
