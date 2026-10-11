@@ -1,6 +1,6 @@
 import { Form } from "@/components/form";
 import { Alert, Card, Field, PageHeader } from "@/components/ui";
-import { can } from "@/server/permissions";
+import { canActor } from "@/server/context";
 import { requireActor } from "@/server/session";
 import { renameOrgAction } from "../../actions";
 
@@ -12,7 +12,7 @@ export default async function Configuracoes() {
   return (
     <>
       <PageHeader title="Configurações" subtitle="Dados da organização." />
-      {can(actor.role, "org.settings") ? (
+      {canActor(actor, "org.settings") ? (
         <Card className="max-w-md">
           <Form action={renameOrgAction} submit="Salvar">
             <Field label="Nome da organização" name="name" defaultValue={org.name} />

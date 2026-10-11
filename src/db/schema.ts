@@ -71,6 +71,8 @@ export const memberships = mysqlTable(
     organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
     userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
     role: mysqlEnum("role", ROLES).notNull(),
+    // "restricted": o membro só enxerga as contas de anúncios listadas em member_account_access (administradores são sempre "all").
+    accessScope: mysqlEnum("access_scope", ["all", "restricted"]).notNull().default("all"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("memberships_org_user_uq").on(t.organizationId, t.userId), index("memberships_user_idx").on(t.userId)],
@@ -364,4 +366,16 @@ export const mcpTokens = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("mcp_tokens_hash_uq").on(t.tokenHash), index("mcp_tokens_org_idx").on(t.organizationId)],
+);
+
+// ───────────── Acesso por conta de anúncios ─────────────
+export const memberAccountAccess = mysqlTable(
+  "member_account_access",
+  {
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    adAccountId: varchar("ad_account_id", { length: 36 }).notNull().references(() => adAccounts.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ name: "member_acct_access_pk", columns: [t.organizationId, t.userId, t.adAccountId] }), index("member_acct_access_acct_idx").on(t.adAccountId)],
 );

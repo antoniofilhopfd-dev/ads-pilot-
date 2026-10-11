@@ -40,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <button className="rounded-md border border-line px-2 py-1.5 text-sm text-brand hover:bg-canvas">Trocar</button>
           </form>
           <span className="flex-1" />
+          {actor.allowedAccountIds !== null && <span className="rounded-full bg-[#fbf1dc] px-2.5 py-1 text-xs font-medium text-[#7a5200]">Acesso restrito a {actor.allowedAccountIds.length} conta(s)</span>}
           <Link href="/app/conta" className="text-sm text-muted hover:text-ink hover:underline">{user.name} · {ROLE_LABEL[actor.role]}</Link>
           <form action={logoutAction}><button className="rounded-md border border-line px-3 py-1.5 text-sm text-brand hover:bg-canvas">Sair</button></form>
         </header>

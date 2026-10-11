@@ -5,7 +5,7 @@ import { adAccounts, adSets, ads, campaigns, insightsDaily, metaConnections, syn
 import { AppError, isDuplicateKey } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { audit } from "../audit";
-import { assertCan, type Actor } from "../context";
+import { accountCond, assertCan, type Actor } from "../context";
 import { markConnectionError, providerFor } from "./connection";
 import { MetaApiError, type MetaProvider } from "./types";
 
@@ -38,7 +38,7 @@ export async function syncAccount(actor: Actor, accountId: string, opts: Opts = 
   assertCan(actor, "meta.sync");
   const now = opts.now ?? new Date();
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const [acct] = await db.select().from(adAccounts).where(and(eq(adAccounts.id, accountId), eq(adAccounts.organizationId, actor.organizationId))).limit(1);
+  const [acct] = await db.select().from(adAccounts).where(and(eq(adAccounts.id, accountId), eq(adAccounts.organizationId, actor.organizationId), accountCond(actor, adAccounts.id))).limit(1);
   if (!acct) throw new AppError("not_found", "Conta não encontrada.");
   const [conn] = await db.select().from(metaConnections).where(eq(metaConnections.id, acct.connectionId)).limit(1);
   if (!conn || conn.status !== "active") throw new AppError("conflict", "A conexão com a Meta precisa ser refeita antes de sincronizar.");
@@ -149,7 +149,7 @@ export async function syncAccount(actor: Actor, accountId: string, opts: Opts = 
 }
 
 export async function syncAllSelected(actor: Actor, opts: Opts = {}) {
-  const accts = await db.select({ id: adAccounts.id }).from(adAccounts).where(and(eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true)));
+  const accts = await db.select({ id: adAccounts.id }).from(adAccounts).where(and(eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true), accountCond(actor, adAccounts.id)));
   const out = [];
   for (const a of accts) {
     try { out.push({ accountId: a.id, ...(await syncAccount(actor, a.id, opts)) }); }
@@ -161,5 +161,5 @@ export async function syncAllSelected(actor: Actor, opts: Opts = {}) {
 export async function recentRuns(actor: Actor, limit = 15) {
   assertCan(actor, "insights.read");
   return db.select({ run: syncRuns, accountName: adAccounts.name }).from(syncRuns).innerJoin(adAccounts, eq(adAccounts.id, syncRuns.adAccountId))
-    .where(eq(syncRuns.organizationId, actor.organizationId)).orderBy(desc(syncRuns.startedAt)).limit(limit);
+    .where(and(eq(syncRuns.organizationId, actor.organizationId), accountCond(actor, syncRuns.adAccountId))).orderBy(desc(syncRuns.startedAt)).limit(limit);
 }

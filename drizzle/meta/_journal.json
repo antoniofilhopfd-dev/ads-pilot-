@@ -36,6 +36,13 @@
       "when": 1791731705588,
       "tag": "0004_mean_ego",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1791732741200,
+      "tag": "0005_confused_black_bolt",
+      "breakpoints": true
     }
   ]
 }

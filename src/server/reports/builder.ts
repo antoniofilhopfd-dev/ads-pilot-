@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { campaigns, operations, organizations, users, adAccounts } from "@/db/schema";
 import { aggregate, pctChange, type Totals } from "@/lib/metrics";
 import { AppError } from "@/lib/errors";
-import { assertCan, type Actor } from "../context";
+import { accountCond, assertCan, type Actor } from "../context";
 import { getOverview, loadCampaigns, resolvePeriod } from "../insights";
 import { getHealth } from "../meta/health";
 import { listClients } from "../services/clients";
@@ -31,7 +31,7 @@ export async function buildReport(actor: Actor, config: ReportConfig, now = new 
   if (config.clientId && !clients.some((c) => c.id === config.clientId)) throw new AppError("not_found", "Cliente não encontrado.");
   let accountName: string | null = null;
   if (config.accountId) {
-    const [a] = await db.select({ name: adAccounts.name }).from(adAccounts).where(and(eq(adAccounts.id, config.accountId), eq(adAccounts.organizationId, actor.organizationId)));
+    const [a] = await db.select({ name: adAccounts.name }).from(adAccounts).where(and(eq(adAccounts.id, config.accountId), eq(adAccounts.organizationId, actor.organizationId), accountCond(actor, adAccounts.id)));
     if (!a) throw new AppError("not_found", "Conta não encontrada.");
     accountName = a.name;
   }
@@ -81,7 +81,7 @@ export async function buildReport(actor: Actor, config: ReportConfig, now = new 
   const ops = await db
     .select({ at: operations.createdAt, type: operations.type, status: operations.status, mode: operations.mode, who: users.name, campaign: campaigns.name, params: operations.params })
     .from(operations).innerJoin(campaigns, eq(campaigns.id, operations.campaignId)).leftJoin(users, eq(users.id, operations.createdBy))
-    .where(and(eq(operations.organizationId, actor.organizationId), gte(operations.createdAt, new Date(p.since + "T00:00:00Z")), lte(operations.createdAt, new Date(p.until + "T23:59:59Z"))));
+    .where(and(eq(operations.organizationId, actor.organizationId), accountCond(actor, operations.adAccountId), gte(operations.createdAt, new Date(p.since + "T00:00:00Z")), lte(operations.createdAt, new Date(p.until + "T23:59:59Z"))));
   const OPN = { pause: "Pausar", activate: "Reativar", set_daily_budget: "Alterar orçamento diário" } as const;
   const changes: Report["changes"] = ops.sort((a, b) => b.at.getTime() - a.at.getTime()).map((o) => ({
     at: o.at, what: `${OPN[o.type]}: ${o.campaign}${o.type === "set_daily_budget" && o.params.dailyBudget ? ` → ${o.params.dailyBudget.toFixed(2)}` : ""}`, who: o.who, mode: o.mode, result: o.status,

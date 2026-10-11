@@ -9,13 +9,12 @@ import { logger } from "@/lib/logger";
 import { pctChange } from "@/lib/metrics";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { audit } from "../audit";
-import type { Actor } from "../context";
+import { accountCond, canActor, type Actor } from "../context";
 import { getCampaignDetail, getOverview, listCampaigns, resolvePeriod } from "../insights";
 import { listAccounts } from "../meta/connection";
 import { getHealth } from "../meta/health";
 import { cancelOperation, executeWithConfirmationCode, getOperation, listOperations, prepareOperation, reconcileOperation } from "../meta/operations";
 import { recentRuns, STALE_AFTER_HOURS } from "../meta/sync";
-import { can } from "../permissions";
 import { buildReport } from "../reports/builder";
 import { listExports, listTemplates } from "../reports/service";
 import { DEFAULT_SECTIONS, REPORT_TYPES, SECTIONS } from "../reports/types";
@@ -37,7 +36,7 @@ async function dataContext(actor: Actor, f: { clientId?: string; accountId?: str
   const [[org], [conn], accts] = await Promise.all([
     db.select({ id: organizations.id, name: organizations.name }).from(organizations).where(eq(organizations.id, actor.organizationId)),
     db.select().from(metaConnections).where(eq(metaConnections.organizationId, actor.organizationId)).limit(1),
-    db.select().from(adAccounts).where(and(eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true), f.clientId ? eq(adAccounts.clientId, f.clientId) : undefined, f.accountId ? eq(adAccounts.id, f.accountId) : undefined)),
+    db.select().from(adAccounts).where(and(eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true), accountCond(actor, adAccounts.id), f.clientId ? eq(adAccounts.clientId, f.clientId) : undefined, f.accountId ? eq(adAccounts.id, f.accountId) : undefined)),
   ]);
   const synced = accts.map((a) => a.lastSyncedAt).filter((d): d is Date => !!d);
   const last = synced.length === accts.length && synced.length ? new Date(Math.min(...synced.map((d) => d.getTime()))) : null;
@@ -76,7 +75,7 @@ export function createMcpServer(auth: McpAuth): McpServer {
         audit({ organizationId: actor.organizationId, userId: actor.userId, action: `mcp.${name}`, objectType: "mcp_tool", objectId: null, after: { tokenId: auth.tokenId, token: undefined, tokenName: auth.tokenName, tool: name, args: safeArgs }, result, error, requestId: actor.requestId }).catch(() => {});
       try {
         if (!auth.scopes.includes(needs)) throw new AppError("forbidden", `Este token não tem o escopo "${needs}".`);
-        if (needs === "write" && !can(actor.role, "campaigns.write")) throw new AppError("forbidden", "O usuário deste token não tem permissão de escrita.");
+        if (needs === "write" && !canActor(actor, "campaigns.write")) throw new AppError("forbidden", "O usuário deste token não tem permissão de escrita.");
         if (!checkRateLimit(`mcp:${auth.tokenId}:${needs}`, needs === "read" ? 120 : 20, 60_000)) throw new AppError("rate_limited", "Limite de requisições excedido. Aguarde um minuto.");
         const r = await handler(a, auth);
         const ctx = await dataContext(actor, r.ctx === null ? {} : { ...(a as { clientId?: string; accountId?: string; days?: number }), ...(r.ctx ?? {}) });

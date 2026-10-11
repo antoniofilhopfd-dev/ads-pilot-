@@ -6,8 +6,7 @@ import { mcpTokens, MCP_SCOPES } from "@/db/schema";
 import { hashToken } from "@/lib/crypto";
 import { AppError } from "@/lib/errors";
 import { audit } from "../audit";
-import { assertCan, getActor, type Actor } from "../context";
-import { can } from "../permissions";
+import { assertCan, canActor, getActor, type Actor } from "../context";
 
 export const TOKEN_PREFIX = "adp_mcp_";
 const createSchema = z.object({ name: z.string().trim().min(2).max(80), scopes: z.array(z.enum(MCP_SCOPES)).min(1), ttlDays: z.union([z.literal(30), z.literal(90), z.literal(365)]) });
@@ -18,7 +17,7 @@ export async function createMcpToken(actor: Actor, input: unknown) {
   assertCan(actor, "insights.read");
   const p = createSchema.safeParse(input);
   if (!p.success) throw new AppError("validation", "Informe um nome (2 a 80 caracteres), ao menos um escopo e uma validade (30, 90 ou 365 dias).");
-  if (p.data.scopes.includes("write") && !can(actor.role, "campaigns.write")) throw new AppError("forbidden", "Seu perfil não pode conceder escopo de escrita a assistentes.");
+  if (p.data.scopes.includes("write") && !canActor(actor, "campaigns.write")) throw new AppError("forbidden", "Seu perfil não pode conceder escopo de escrita a assistentes.");
   const token = TOKEN_PREFIX + randomBytes(32).toString("base64url");
   const id = randomUUID();
   await db.insert(mcpTokens).values({

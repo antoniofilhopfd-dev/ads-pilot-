@@ -4,7 +4,7 @@ import { LineChart } from "@/components/charts";
 import { DemoBanner, SyncBadge } from "@/components/data-status";
 import { Form } from "@/components/form";
 import { Alert, Badge, Card, Field, PageHeader, Td, Th } from "@/components/ui";
-import { can } from "@/server/permissions";
+import { canActor } from "@/server/context";
 import { prepareOperationAction } from "../../../actions";
 import { AppError } from "@/lib/errors";
 import { objectiveLabel, statusInfo } from "@/lib/labels";
@@ -34,7 +34,7 @@ export default async function Detalhe({ params, searchParams }: { params: Promis
       <PageHeader title={c.name} subtitle={`${d.accountName} · ${objectiveLabel(c.objective)}`} action={<SyncBadge lastSyncedAt={d.lastSyncedAt} stale={stale} hasConnection />} />
       <p className="-mt-3 mb-4 text-sm"><Link className="text-brand underline" href={`/app/campanhas?${back}`}>← Campanhas</Link> <span className="ml-2"><Badge tone={s.tone}>{s.label}</Badge></span></p>
       {conn?.mode === "demo" && <DemoBanner />}
-      {can(actor.role, "campaigns.write") && (
+      {canActor(actor, "campaigns.write") && (
         <Card className="mb-4">
           <h2 className="mb-2 text-sm font-semibold">Ações</h2>
           {conn?.mode !== "demo" ? (

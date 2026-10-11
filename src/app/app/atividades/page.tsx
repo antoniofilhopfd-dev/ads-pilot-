@@ -1,5 +1,5 @@
 import { Alert, Badge, Card, EmptyState, PageHeader, Td, Th } from "@/components/ui";
-import { can } from "@/server/permissions";
+import { canActor } from "@/server/context";
 import { listActivity } from "@/server/services/organizations";
 import { requireActor } from "@/server/session";
 
@@ -12,7 +12,7 @@ const LABEL: Record<string, string> = {
 
 export default async function Atividades() {
   const { actor } = await requireActor();
-  if (!can(actor.role, "audit.read")) {
+  if (!canActor(actor, "audit.read")) {
     return (<><PageHeader title="Atividades" /><Alert tone="info">Seu perfil não tem acesso ao histórico de atividades.</Alert></>);
   }
   const rows = await listActivity(actor);

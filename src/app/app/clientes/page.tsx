@@ -1,7 +1,7 @@
 import { ConfirmButton } from "@/components/confirm-button";
 import { Form } from "@/components/form";
 import { Card, EmptyState, Field, PageHeader, Td, Th, btnCls } from "@/components/ui";
-import { can } from "@/server/permissions";
+import { canActor } from "@/server/context";
 import { listClients } from "@/server/services/clients";
 import { requireActor } from "@/server/session";
 import { createClientAction, deleteClientAction } from "../../actions";
@@ -11,7 +11,7 @@ export const metadata = { title: "Clientes — AdsPilot" };
 export default async function Clientes() {
   const { actor } = await requireActor();
   const clients = await listClients(actor);
-  const canWrite = can(actor.role, "clients.write");
+  const canWrite = canActor(actor, "clients.write");
   return (
     <>
       <PageHeader title="Clientes" subtitle="Empresas ou marcas cujas contas de anúncios você gerencia." />

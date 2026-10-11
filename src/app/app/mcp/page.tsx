@@ -2,7 +2,7 @@ import { ConfirmButton } from "@/components/confirm-button";
 import { Form } from "@/components/form";
 import { Alert, Badge, Card, EmptyState, Field, PageHeader, Td, Th, btnCls, inputCls } from "@/components/ui";
 import { listMcpTokens } from "@/server/mcp/tokens";
-import { can } from "@/server/permissions";
+import { canActor } from "@/server/context";
 import { requireActor } from "@/server/session";
 import { createMcpTokenAction, revokeMcpTokenAction } from "../../actions";
 
@@ -13,7 +13,7 @@ const fmt = (d: Date | null) => (d ? d.toLocaleString("pt-BR", { timeZone: "Amer
 export default async function McpPage() {
   const { actor } = await requireActor();
   const tokens = await listMcpTokens(actor);
-  const canWrite = can(actor.role, "campaigns.write");
+  const canWrite = canActor(actor, "campaigns.write");
   const url = `${process.env.APP_URL ?? "https://SEU-DOMINIO"}/api/mcp`;
   return (
     <>

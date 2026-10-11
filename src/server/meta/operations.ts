@@ -6,7 +6,7 @@ import { adAccounts, campaigns, metaConnections, operations, OP_TYPES } from "@/
 import { AppError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { audit } from "../audit";
-import { assertCan, type Actor } from "../context";
+import { accountCond, assertAccountAccess, assertCan, type Actor } from "../context";
 import { providerFor } from "./connection";
 import { isWriter, MetaApiError, type CampaignPatch, type CampaignRemoteState, type MetaProvider, type MetaWriter } from "./types";
 
@@ -41,7 +41,7 @@ async function load(actor: Actor, campaignId: string) {
   const [row] = await db
     .select({ c: campaigns, a: adAccounts, conn: metaConnections })
     .from(campaigns).innerJoin(adAccounts, eq(adAccounts.id, campaigns.adAccountId)).innerJoin(metaConnections, eq(metaConnections.id, adAccounts.connectionId))
-    .where(and(eq(campaigns.id, campaignId), eq(campaigns.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId)))
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId), accountCond(actor, adAccounts.id)))
     .limit(1);
   if (!row) throw new AppError("not_found", "Campanha não encontrada.");
   return row;
@@ -69,6 +69,7 @@ export async function prepareOperation(actor: Actor, input: unknown, opts: PrepO
   if (opts.clientRequestId) {
     const [dup] = await db.select().from(operations).where(and(eq(operations.organizationId, actor.organizationId), eq(operations.clientRequestId, opts.clientRequestId))).limit(1);
     if (dup) {
+      assertAccountAccess(actor, dup.adAccountId);
       if (dup.campaignId !== campaignId || dup.type !== type || dup.params.dailyBudget !== dailyBudget) throw new AppError("conflict", "Este clientRequestId já foi usado para outra operação.");
       return { operationId: dup.id, campaign: "", type, before: dup.before, warnings: dup.warnings, requiresAcknowledgement: dup.warnings.some((w) => w.startsWith("Aumento")), expiresAt: dup.expiresAt, duplicate: true };
     }
@@ -119,6 +120,7 @@ async function readRemote(w: MetaWriter, acct: string, camp: string) {
 async function getOp(actor: Actor, operationId: string): Promise<Op> {
   const [op] = await db.select().from(operations).where(and(eq(operations.id, operationId), eq(operations.organizationId, actor.organizationId))).limit(1);
   if (!op) throw new AppError("not_found", "Operação não encontrada.");
+  assertAccountAccess(actor, op.adAccountId); // operação de conta fora do acesso do ator = inexistente
   return op;
 }
 
@@ -232,7 +234,7 @@ export async function listOperations(actor: Actor, limit = 50) {
   // preparadas vencidas viram "expiradas" ao listar
   await db.update(operations).set({ status: "expired", resultMessage: "Confirmação expirada." }).where(and(eq(operations.organizationId, actor.organizationId), eq(operations.status, "prepared"), lt(operations.expiresAt, new Date())));
   return db.select({ op: operations, campaignName: campaigns.name }).from(operations).innerJoin(campaigns, eq(campaigns.id, operations.campaignId))
-    .where(eq(operations.organizationId, actor.organizationId)).orderBy(desc(operations.createdAt)).limit(limit);
+    .where(and(eq(operations.organizationId, actor.organizationId), accountCond(actor, operations.adAccountId))).orderBy(desc(operations.createdAt)).limit(limit);
 }
 
 

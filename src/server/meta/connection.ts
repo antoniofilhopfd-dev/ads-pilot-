@@ -5,7 +5,7 @@ import { adAccounts, clients, metaConnections } from "@/db/schema";
 import { decryptSecret, encryptSecret } from "@/lib/crypto";
 import { AppError } from "@/lib/errors";
 import { audit } from "../audit";
-import { assertCan, type Actor } from "../context";
+import { accountCond, assertCan, type Actor } from "../context";
 import { DemoProvider } from "./demo-provider";
 import { GraphApiProvider } from "./graph-provider";
 import { MetaApiError, type MetaProvider } from "./types";
@@ -103,7 +103,7 @@ export async function disconnect(actor: Actor) {
 
 export async function listAccounts(actor: Actor) {
   assertCan(actor, "insights.read");
-  return db.select().from(adAccounts).where(eq(adAccounts.organizationId, actor.organizationId)).orderBy(adAccounts.name);
+  return db.select().from(adAccounts).where(and(eq(adAccounts.organizationId, actor.organizationId), accountCond(actor, adAccounts.id))).orderBy(adAccounts.name);
 }
 
 export async function configureAccount(actor: Actor, accountId: string, input: { selected: boolean; clientId: string | null }) {

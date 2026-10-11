@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { clients } from "@/db/schema";
+import { adAccounts, clients } from "@/db/schema";
 import { AppError, isDuplicateKey } from "@/lib/errors";
 import { audit } from "../audit";
 import { assertCan, type Actor } from "../context";
@@ -12,9 +12,17 @@ const clientSchema = z.object({
   notes: z.string().trim().max(2000).optional().nullable(),
 });
 
+// Acesso restrito: só os clientes que possuem ao menos uma conta de anúncios liberada para o ator.
+async function visibleClientCond(actor: Actor) {
+  if (actor.allowedAccountIds === null) return undefined;
+  const rows = actor.allowedAccountIds.length ? await db.selectDistinct({ id: adAccounts.clientId }).from(adAccounts).where(and(eq(adAccounts.organizationId, actor.organizationId), inArray(adAccounts.id, actor.allowedAccountIds))) : [];
+  const ids = rows.map((r) => r.id).filter((x): x is string => !!x);
+  return inArray(clients.id, ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
+}
+
 export async function listClients(actor: Actor) {
   assertCan(actor, "clients.read");
-  return db.select().from(clients).where(eq(clients.organizationId, actor.organizationId)).orderBy(asc(clients.name));
+  return db.select().from(clients).where(and(eq(clients.organizationId, actor.organizationId), await visibleClientCond(actor))).orderBy(asc(clients.name));
 }
 
 // Toda busca por id inclui organization_id: id de outra organização = "não encontrado".
@@ -23,7 +31,7 @@ export async function getClient(actor: Actor, clientId: string) {
   const [c] = await db
     .select()
     .from(clients)
-    .where(and(eq(clients.id, clientId), eq(clients.organizationId, actor.organizationId)))
+    .where(and(eq(clients.id, clientId), eq(clients.organizationId, actor.organizationId), await visibleClientCond(actor)))
     .limit(1);
   if (!c) throw new AppError("not_found", "Cliente não encontrado.");
   return c;

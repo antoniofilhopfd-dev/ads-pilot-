@@ -6,7 +6,7 @@ import { AppError } from "@/lib/errors";
 import { OP_LABEL, OPSTATUS, statusInfo } from "@/lib/labels";
 import { brl } from "@/lib/metrics";
 import { getOperation } from "@/server/meta/operations";
-import { can } from "@/server/permissions";
+import { canActor } from "@/server/context";
 import { requireActor } from "@/server/session";
 import { cancelOperationAction, executeOperationAction, issueCodeAction, reconcileOperationAction } from "../../../actions";
 
@@ -18,7 +18,7 @@ export default async function OperacaoPage({ params }: { params: Promise<{ id: s
   let op;
   try { op = await getOperation(actor, id); } catch (e) { if (e instanceof AppError && e.code === "not_found") notFound(); throw e; }
   const [tone, label] = OPSTATUS[op.status];
-  const canWrite = can(actor.role, "campaigns.write");
+  const canWrite = canActor(actor, "campaigns.write");
   const needsAck = op.warnings.some((w) => w.startsWith("Aumento"));
   const target = op.type === "pause" ? "PAUSED" : op.type === "activate" ? "ACTIVE" : null;
   const s = (st: string | null) => statusInfo(st).label;

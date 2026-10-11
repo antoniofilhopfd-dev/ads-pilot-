@@ -49,7 +49,8 @@ export async function exportReport(actor: Actor, config: ReportConfig, format: F
 
 export async function listExports(actor: Actor, limit = 20) {
   assertCan(actor, "insights.read");
-  return db.select().from(reportExports).where(eq(reportExports.organizationId, actor.organizationId)).orderBy(desc(reportExports.createdAt)).limit(limit);
+  // acesso restrito: só as próprias exportações (as de outras pessoas podem conter contas fora do acesso)
+  return db.select().from(reportExports).where(and(eq(reportExports.organizationId, actor.organizationId), actor.allowedAccountIds !== null ? eq(reportExports.userId, actor.userId) : undefined)).orderBy(desc(reportExports.createdAt)).limit(limit);
 }
 
 // ── Modelos reutilizáveis

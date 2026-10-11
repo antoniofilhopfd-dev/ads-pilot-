@@ -7,7 +7,7 @@ import { AppError } from "@/lib/errors";
 import { requireActor, run, cookieOpts, ORG_COOKIE, SESSION_COOKIE, type ActionResult } from "@/server/session";
 import { createSession, destroySession, login, register, requestPasswordReset, resetPassword } from "@/server/services/auth";
 import { createClient, deleteClient, updateClient } from "@/server/services/clients";
-import { addMemberByEmail, changeMemberRole, removeMember, renameOrganization } from "@/server/services/organizations";
+import { addMemberByEmail, changeMemberRole, removeMember, renameOrganization, setMemberAccess } from "@/server/services/organizations";
 import { listUserOrganizations } from "@/server/context";
 import { configureAccount, connectDemo, disconnect, discoverAccounts } from "@/server/meta/connection";
 import { syncAccount, syncAllSelected } from "@/server/meta/sync";
@@ -95,7 +95,7 @@ export async function updateClientAction(_: ActionResult, f: FormData): Promise<
 export async function addMemberAction(_: ActionResult, f: FormData): Promise<ActionResult> {
   return run(async () => {
     const { actor } = await requireActor();
-    await addMemberByEmail(actor, str(f, "email"), str(f, "role"));
+    await addMemberByEmail(actor, str(f, "email"), str(f, "role"), { restricted: f.get("restricted") === "on" });
     revalidatePath("/app/equipe");
     return { ok: "Membro adicionado." };
   });
@@ -301,5 +301,15 @@ export async function issueCodeAction(_: ActionResult, f: FormData): Promise<Act
     const { actor } = await requireActor();
     const r = await issueConfirmationCode(actor, str(f, "operationId"));
     return { ok: `Código de confirmação: ${r.code} (válido por 10 min, uso único). Informe-o ao assistente SOMENTE se você revisou a alteração acima.` };
+  });
+}
+
+
+export async function setMemberAccessAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await setMemberAccess(actor, str(f, "userId"), { scope: str(f, "scope"), accountIds: f.getAll("accountId").map(String) });
+    revalidatePath("/app", "layout");
+    return { ok: "Acesso atualizado." };
   });
 }

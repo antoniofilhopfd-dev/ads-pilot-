@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { adAccounts, syncRuns } from "@/db/schema";
-import { assertCan, type Actor } from "../context";
+import { accountCond, assertCan, type Actor } from "../context";
 import { getConnection, REQUIRED_SCOPES } from "./connection";
 import { STALE_AFTER_HOURS } from "./sync";
 
@@ -13,7 +13,7 @@ export async function getHealth(actor: Actor, now = new Date()) {
   const conn = await getConnection(actor);
   if (!conn) return { state: "none" as const, connection: null, accounts: [], instructions: ["Conecte a Meta (ou ative o modo demonstração) para começar."] };
 
-  const accts = await db.select().from(adAccounts).where(eq(adAccounts.organizationId, actor.organizationId)).orderBy(adAccounts.name);
+  const accts = await db.select().from(adAccounts).where(and(eq(adAccounts.organizationId, actor.organizationId), accountCond(actor, adAccounts.id))).orderBy(adAccounts.name);
   const accounts = [];
   for (const a of accts) {
     const runs = await db.select().from(syncRuns).where(eq(syncRuns.adAccountId, a.id)).orderBy(desc(syncRuns.startedAt)).limit(20);

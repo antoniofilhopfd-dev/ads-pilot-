@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { adAccounts, adSets, ads, campaigns, insightsDaily, metaConnections, syncRuns } from "@/db/schema";
 import { aggregate, type Totals } from "@/lib/metrics";
 import { AppError } from "@/lib/errors";
-import { assertCan, type Actor } from "./context";
+import { accountCond, assertCan, type Actor } from "./context";
 import { STALE_AFTER_HOURS } from "./meta/sync";
 
 export type Filters = { clientId?: string; accountId?: string; since: string; until: string };
@@ -28,7 +28,7 @@ async function loadRows(actor: Actor, f: Filters) {
     .innerJoin(adAccounts, eq(adAccounts.id, insightsDaily.adAccountId))
     .where(and(
       eq(insightsDaily.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true),
-      gte(insightsDaily.date, f.since), lte(insightsDaily.date, f.until),
+      gte(insightsDaily.date, f.since), lte(insightsDaily.date, f.until), accountCond(actor, adAccounts.id),
       f.accountId ? eq(adAccounts.id, f.accountId) : undefined, f.clientId ? eq(adAccounts.clientId, f.clientId) : undefined,
     ));
   return rows.map((r) => ({ ...r, spend: dec(r.spend), purchaseValue: dec(r.purchaseValue) }));
@@ -44,7 +44,7 @@ export async function loadCampaigns(actor: Actor, f: Filters): Promise<CampaignR
     .select({ c: campaigns, accountName: adAccounts.name, currency: adAccounts.currency })
     .from(campaigns).innerJoin(adAccounts, eq(adAccounts.id, campaigns.adAccountId))
     .where(and(
-      eq(campaigns.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true),
+      eq(campaigns.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true), accountCond(actor, adAccounts.id),
       f.accountId ? eq(adAccounts.id, f.accountId) : undefined, f.clientId ? eq(adAccounts.clientId, f.clientId) : undefined,
     ));
   const acctRows = await db.select({ id: adAccounts.id, clientId: adAccounts.clientId }).from(adAccounts).where(eq(adAccounts.organizationId, actor.organizationId));
@@ -63,7 +63,7 @@ export async function getOverview(actor: Actor, f: Filters & { prevSince: string
   assertCan(actor, "insights.read");
   const [conn] = await db.select().from(metaConnections).where(eq(metaConnections.organizationId, actor.organizationId)).limit(1);
   const accts = await db.select().from(adAccounts).where(and(
-    eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true),
+    eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true), accountCond(actor, adAccounts.id),
     f.accountId ? eq(adAccounts.id, f.accountId) : undefined, f.clientId ? eq(adAccounts.clientId, f.clientId) : undefined,
   ));
   const currencies = [...new Set(accts.map((a) => a.currency))];
@@ -98,7 +98,7 @@ export async function getOverview(actor: Actor, f: Filters & { prevSince: string
     .select({ campaignId: campaigns.id, campaignName: campaigns.name, adName: ads.name })
     .from(ads).innerJoin(adSets, eq(adSets.id, ads.adSetId)).innerJoin(campaigns, eq(campaigns.id, adSets.campaignId)).innerJoin(adAccounts, eq(adAccounts.id, campaigns.adAccountId))
     .where(and(
-      eq(ads.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true), eq(ads.effectiveStatus, "DISAPPROVED"),
+      eq(ads.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId), eq(adAccounts.isSelected, true), eq(ads.effectiveStatus, "DISAPPROVED"), accountCond(actor, adAccounts.id),
       f.accountId ? eq(adAccounts.id, f.accountId) : undefined, f.clientId ? eq(adAccounts.clientId, f.clientId) : undefined,
     ));
   for (const [cid, list] of Map.groupBy(bad, (b) => b.campaignId))
@@ -151,7 +151,7 @@ export async function getCampaignDetail(actor: Actor, campaignId: string, f: Fil
   const [row] = await db
     .select({ c: campaigns, accountName: adAccounts.name, currency: adAccounts.currency, accountId: adAccounts.id, lastSyncedAt: adAccounts.lastSyncedAt, clientId: adAccounts.clientId })
     .from(campaigns).innerJoin(adAccounts, eq(adAccounts.id, campaigns.adAccountId))
-    .where(and(eq(campaigns.id, campaignId), eq(campaigns.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId)))
+    .where(and(eq(campaigns.id, campaignId), eq(campaigns.organizationId, actor.organizationId), eq(adAccounts.organizationId, actor.organizationId), accountCond(actor, adAccounts.id)))
     .limit(1);
   if (!row) throw new AppError("not_found", "Campanha não encontrada.");
   const scope = (since: string, until: string) => and(eq(insightsDaily.campaignId, campaignId), eq(insightsDaily.organizationId, actor.organizationId), gte(insightsDaily.date, since), lte(insightsDaily.date, until));

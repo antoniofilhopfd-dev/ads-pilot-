@@ -3,7 +3,7 @@ import { Form } from "@/components/form";
 import { ConfirmButton } from "@/components/confirm-button";
 import { Badge, Card, EmptyState, Field, PageHeader, Td, Th, btnCls, inputCls } from "@/components/ui";
 import { filterOptions } from "@/server/params";
-import { can } from "@/server/permissions";
+import { canActor } from "@/server/context";
 import { listExports, listTemplates } from "@/server/reports/service";
 import { DEFAULT_SECTIONS, REPORT_TYPES, SECTIONS, SECTION_LABEL, TYPE_LABEL, type ReportType } from "@/server/reports/types";
 import { requireActor } from "@/server/session";
@@ -20,7 +20,7 @@ const qs = (c: { type?: string; days?: number; clientId?: string; accountId?: st
 export default async function Relatorios() {
   const { actor } = await requireActor();
   const [options, templates, exports] = await Promise.all([filterOptions(actor), listTemplates(actor), listExports(actor)]);
-  const manage = can(actor.role, "reports.manage");
+  const manage = canActor(actor, "reports.manage");
   return (
     <>
       <PageHeader title="Relatórios" subtitle="Monte um relatório, visualize no aplicativo e exporte em PDF, XLSX ou CSV." />
