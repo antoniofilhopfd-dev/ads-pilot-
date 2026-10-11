@@ -23,7 +23,7 @@ export default async function Diagnosticos() {
                 <div className="flex flex-wrap items-center gap-2"><Badge tone={TONE[d.tone]}>{d.id.replace(/_/g, " ")}</Badge><Badge>Confiança: {d.confidence}</Badge></div>
                 <p className="mt-2"><strong>Observação:</strong> {d.observation}</p>
                 <p className="text-muted"><strong>Comparação:</strong> {d.comparison}</p>
-                {d.hypothesis && <p><strong>Hipótese:</strong> {d.hypothesis}</p>}
+                {d.hypothesis && <p><strong>Hipótese (não comprovada):</strong> {d.hypothesis.replace(/^Hipótese \(não comprovada\):\s*/, "")}</p>}
                 <p><strong>Recomendação:</strong> {d.recommendation}</p>
                 <p className="text-muted"><strong>Riscos:</strong> {d.risks}</p>
                 <p><strong>Próxima ação:</strong> {d.nextAction}</p>

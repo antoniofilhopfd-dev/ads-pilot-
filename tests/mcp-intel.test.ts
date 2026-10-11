@@ -1,0 +1,42 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import { eq } from "drizzle-orm";
+import { describe, expect, it } from "vitest";
+import { POST } from "@/app/api/mcp/route";
+import { db } from "@/db";
+import { campaigns } from "@/db/schema";
+import { evaluateAlerts } from "@/server/alerts";
+import { setBudgetPlan } from "@/server/budget";
+import { setGoal } from "@/server/goals";
+import { createMcpToken } from "@/server/mcp/tokens";
+import { configureAccount, connectDemo, listAccounts } from "@/server/meta/connection";
+import { syncAccount } from "@/server/meta/sync";
+import { newOrg } from "./helpers";
+
+describe("MCP — leitura de inteligência", () => {
+  it("alertas, orçamentos, metas e diagnóstico; somente leitura", async () => {
+    const o = await newOrg("Mi");
+    await connectDemo(o.admin);
+    const a = (await listAccounts(o.admin))[0];
+    await configureAccount(o.admin, a.id, { selected: true, clientId: null });
+    const now = new Date();
+    await syncAccount(o.admin, a.id, { now, sleep: async () => {} });
+    await setBudgetPlan(o.admin, { scope: "account", scopeId: a.id, period: now.toISOString().slice(0, 7), amount: 1 });
+    await setGoal(o.admin, { scope: "org", metric: "ctr", direction: "min", target: 99 });
+    await evaluateAlerts(o.organizationId, now);
+    const camp = (await db.select().from(campaigns).where(eq(campaigns.organizationId, o.organizationId)))[0];
+    const { token } = await createMcpToken(o.admin, { name: "Token intel", scopes: ["read"], ttlDays: 30 });
+    const c = new Client({ name: "teste", version: "1" });
+    await c.connect(new StreamableHTTPClientTransport(new URL("http://localhost:3000/api/mcp"), { requestInit: { headers: { Authorization: `Bearer ${token}` } }, fetch: ((u: string | URL, i?: RequestInit) => POST(new Request(u, i))) as typeof fetch }));
+    const call = async (name: string, args = {}) => { const x = (await c.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] }; return { isError: !!x.isError, json: JSON.parse(x.content[0].text) }; };
+    const tools = (await c.listTools()).tools.map((t) => t.name);
+    for (const t of ["list_alerts", "list_budgets", "list_goals", "get_campaign_diagnostics"]) expect(tools).toContain(t);
+    const al = await call("list_alerts");
+    expect(al.json.data.map((x: { type: string }) => x.type)).toEqual(expect.arrayContaining(["budget_exceeded", "goal_not_met"]));
+    expect(al.json.context.notice).toMatch(/NÃO CONFIÁVEIS/); expect(al.json.context.dataSource).toMatch(/DEMONSTRAÇÃO/);
+    const b = await call("list_budgets"); expect(b.json.data[0].status).toBe("excedido"); expect(b.json.data[0].assumptions.length).toBeGreaterThan(0);
+    const g = await call("list_goals"); expect(g.json.data[0].status).toMatch(/nao_atingida|amostra_insuficiente/);
+    const d = await call("get_campaign_diagnostics", { campaignId: camp.id }); expect(d.json.data.ai.available).toBe(false);
+    expect((await call("get_campaign_diagnostics", { campaignId: "00000000-0000-4000-8000-000000000000" })).isError).toBe(true);
+  });
+});

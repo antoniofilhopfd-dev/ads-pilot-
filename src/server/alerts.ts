@@ -23,7 +23,7 @@ const cfgSchema = z.object({
 export async function saveAlertConfig(actor: Actor, input: unknown) {
   assertCan(actor, "budgets.manage");
   const p = cfgSchema.safeParse(input);
-  if (!p.success) throw new AppError("validation", p.error.issues[0].path.join(".") + ": " + p.error.issues[0].message);
+  if (!p.success) throw new AppError("validation", `Valor fora do intervalo permitido em “${p.error.issues[0].path.join(".")}”.`);
   const members = await db.select({ u: memberships.userId }).from(memberships).where(eq(memberships.organizationId, actor.organizationId));
   const ok = new Set(members.map((m) => m.u));
   if (p.data.responsibleUserIds.some((u) => !ok.has(u))) throw new AppError("validation", "Responsável não pertence à organização.");
@@ -32,6 +32,8 @@ export async function saveAlertConfig(actor: Actor, input: unknown) {
   await db.insert(alertSettings).values({ organizationId: actor.organizationId, config: cfg, updatedBy: actor.userId }).onDuplicateKeyUpdate({ set: { config: cfg, updatedBy: actor.userId, updatedAt: new Date() } });
   await audit({ organizationId: actor.organizationId, userId: actor.userId, action: "alerts.config", objectType: "alert_settings", objectId: actor.organizationId, before: before as never, after: cfg as never, result: "success", requestId: actor.requestId });
 }
+
+const n2 = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
 type Candidate = { dedupeKey: string; type: (typeof alerts.$inferInsert)["type"]; severity: "info" | "warning" | "critical"; adAccountId: string | null; entityType: string; entityId: string; entityName: string; title: string; message: string; facts: Record<string, string | number | null>; assumptions?: string[] };
 
@@ -52,12 +54,12 @@ export async function evaluateAlerts(organizationId: string, now = new Date()) {
       for (const b of await listBudgets(sys, period, now)) {
         const label = b.scope === "client" ? "Cliente" : b.scope === "account" ? "Conta" : "Campanha";
         const acct = b.scope === "account" ? b.scopeId : null;
-        if (b.pacing.status === "excedido" && on("budget_exceeded")) cands.push({ dedupeKey: `budget_exceeded:${b.scope}:${b.scopeId}:${b.period}`, type: "budget_exceeded", severity: "critical", adAccountId: acct, entityType: "budget", entityId: b.id, entityName: `${label}: ${b.scopeLabel}`, title: "Orçamento planejado excedido", message: `O gasto reportado (${b.pacing.spent?.toFixed(2)}) passou do planejado (${b.amount.toFixed(2)}) em ${b.period}.`, facts: { planejado: b.amount, gasto: b.pacing.spent }, assumptions: b.pacing.assumptions });
-        else if (b.pacing.status === "projecao_excede" && on("budget_projection")) cands.push({ dedupeKey: `budget_projection:${b.scope}:${b.scopeId}:${b.period}`, type: "budget_projection", severity: "warning", adAccountId: acct, entityType: "budget", entityId: b.id, entityName: `${label}: ${b.scopeLabel}`, title: "Projeção excede o orçamento planejado", message: `Mantido o ritmo, o gasto fecharia em ${b.pacing.projectedClose?.toFixed(2)} contra ${b.amount.toFixed(2)} planejados.`, facts: { planejado: b.amount, projecao: b.pacing.projectedClose, gasto: b.pacing.spent }, assumptions: b.pacing.assumptions });
+        if (b.pacing.status === "excedido" && on("budget_exceeded")) cands.push({ dedupeKey: `budget_exceeded:${b.scope}:${b.scopeId}:${b.period}`, type: "budget_exceeded", severity: "critical", adAccountId: acct, entityType: "budget", entityId: b.id, entityName: `${label}: ${b.scopeLabel}`, title: "Orçamento planejado excedido", message: `O gasto reportado (${n2(b.pacing.spent)}) passou do planejado (${n2(b.amount)}) em ${b.period}.`, facts: { planejado: b.amount, gasto: b.pacing.spent }, assumptions: b.pacing.assumptions });
+        else if (b.pacing.status === "projecao_excede" && on("budget_projection")) cands.push({ dedupeKey: `budget_projection:${b.scope}:${b.scopeId}:${b.period}`, type: "budget_projection", severity: "warning", adAccountId: acct, entityType: "budget", entityId: b.id, entityName: `${label}: ${b.scopeLabel}`, title: "Projeção excede o orçamento planejado", message: `Mantido o ritmo, o gasto fecharia em ${n2(b.pacing.projectedClose)} contra ${n2(b.amount)} planejados.`, facts: { planejado: b.amount, projecao: b.pacing.projectedClose, gasto: b.pacing.spent }, assumptions: b.pacing.assumptions });
       }
     if (on("goal_not_met"))
       for (const g of await evaluateGoals(sys, now)) if (g.status === "nao_atingida")
-        cands.push({ dedupeKey: `goal_not_met:${g.id}`, type: "goal_not_met", severity: "warning", adAccountId: g.scope === "account" ? g.scopeId : null, entityType: "goal", entityId: g.id, entityName: `${g.scopeLabel} · ${g.metric.toUpperCase()}`, title: "Meta não atingida", message: `${g.metric.toUpperCase()} atual ${g.current?.toFixed(2)} × meta ${g.target.toFixed(2)} (últimos ${g.windowDays} dias).`, facts: { atual: g.current, meta: g.target, distancia_pct: g.gapPct === null ? null : Math.round(g.gapPct * 10) / 10 } });
+        cands.push({ dedupeKey: `goal_not_met:${g.id}`, type: "goal_not_met", severity: "warning", adAccountId: g.scope === "account" ? g.scopeId : null, entityType: "goal", entityId: g.id, entityName: `${g.scopeLabel} · ${g.metric.toUpperCase()}`, title: "Meta não atingida", message: `${g.metric.toUpperCase()} atual ${n2(g.current)} × meta ${n2(g.target)} (últimos ${g.windowDays} dias).`, facts: { atual: g.current, meta: g.target, distancia_pct: g.gapPct === null ? null : Math.round(g.gapPct * 10) / 10 } });
   }
   if (on("stale_sync")) {
     for (const a of await db.select().from(adAccounts).where(and(eq(adAccounts.organizationId, organizationId), eq(adAccounts.isSelected, true)))) {

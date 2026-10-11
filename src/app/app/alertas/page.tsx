@@ -51,7 +51,7 @@ export default async function Alertas({ searchParams }: { searchParams: Promise<
                 <fieldset><legend className="mb-1 text-sm font-medium">Regras ativas</legend>
                   {ALERT_TYPES.map((t) => <label key={t} className="flex items-center gap-2 text-sm"><input type="checkbox" name={`on_${t}`} defaultChecked={cfg.enabled[t] !== false} />{TYPE[t]}</label>)}</fieldset>
                 {([["costRisePct", "Custo sobe (%)", 5], ["ctrDropPct", "CTR cai (%)", 5], ["frequencyMax", "Frequência máxima", 0.1], ["minImpressions", "Mínimo de impressões", 100], ["minResults", "Mínimo de resultados", 1], ["noDeliveryDays", "Dias sem entrega", 1], ["renotifyHours", "Reavisar a cada (h)", 1]] as const).map(([k, l, st]) => (
-                  <label key={k} className="block text-sm font-medium">{l}<input name={k} type="number" step={st} defaultValue={cfg[k] ?? DEFAULT_ALERT_CONFIG[k]} required className={`${inputCls} mt-1`} /></label>))}
+                  <label key={k} className="block text-sm font-medium">{l}<input name={k} type="number" step="any" data-step={st} defaultValue={cfg[k] ?? DEFAULT_ALERT_CONFIG[k]} required className={`${inputCls} mt-1`} /></label>))}
                 <fieldset><legend className="mb-1 text-sm font-medium">Responsáveis (vazio = admins e gestores)</legend>
                   {members.map((m) => <label key={m.userId} className="flex items-center gap-2 text-sm"><input type="checkbox" name="responsaveis" value={m.userId} defaultChecked={cfg.responsibleUserIds.includes(m.userId)} />{m.name}</label>)}</fieldset>
               </Form>
