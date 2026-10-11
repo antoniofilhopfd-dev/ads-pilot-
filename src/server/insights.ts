@@ -164,6 +164,7 @@ export async function getCampaignDetail(actor: Actor, campaignId: string, f: Fil
   return {
     campaign: { ...row.c, dailyBudget: dec(row.c.dailyBudget), lifetimeBudget: dec(row.c.lifetimeBudget) },
     accountName: row.accountName, currency: row.currency, lastSyncedAt: row.lastSyncedAt,
+    stale: !row.lastSyncedAt || Date.now() - row.lastSyncedAt.getTime() > STALE_AFTER_HOURS * 3_600_000,
     totals: aggregate(cur), prevTotals: aggregate(prev), daily: cur.map((r) => ({ date: r.date, ...aggregate([r]) })),
     adSets: sets.map((s) => ({ ...s, dailyBudget: dec(s.dailyBudget), lifetimeBudget: dec(s.lifetimeBudget) })), ads: adRows,
   };

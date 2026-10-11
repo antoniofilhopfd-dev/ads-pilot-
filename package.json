@@ -15,7 +15,8 @@
     "test:backup": "bash scripts/backup-restore-test.sh",
     "bench": "tsx --env-file=.env scripts/bench.ts",
     "e2e": "for s in e2e e2e-conta e2e-meta e2e-ops e2e-reports e2e-mcp e2e-security; do tsx --env-file=.env scripts/$s.ts || exit 1; done",
-    "a11y": "tsx scripts/a11y.ts"
+    "a11y": "tsx scripts/a11y.ts",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
@@ -36,12 +37,14 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.0",
     "pdfjs-dist": "^6.4.299",
     "playwright": "^1.64.0",
     "postcss": "^8.5.29",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
     "vitest": "^5.0.3"
   },
   "overrides": {

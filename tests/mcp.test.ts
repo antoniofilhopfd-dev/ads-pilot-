@@ -40,6 +40,7 @@ async function connect(token: string) {
 type Res = { isError?: boolean; content: { type: string; text: string }[] };
 const call = async (c: Client, name: string, args: Record<string, unknown> = {}) => {
   const r = (await c.callTool({ name, arguments: args })) as Res;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let json: Record<string, any>;
   try { json = JSON.parse(r.content[0].text); } catch { json = { error: { code: "schema", message: r.content[0].text } }; } // erros de validação do esquema vêm do SDK em texto
   return { isError: !!r.isError, json };

@@ -31,7 +31,8 @@ export async function createMcpToken(actor: Actor, input: unknown) {
 export async function listMcpTokens(actor: Actor) {
   assertCan(actor, "insights.read");
   const rows = await db.select().from(mcpTokens).where(and(eq(mcpTokens.organizationId, actor.organizationId), actor.role === "admin" ? undefined : eq(mcpTokens.userId, actor.userId))).orderBy(desc(mcpTokens.createdAt));
-  return rows.map(({ tokenHash, ...t }) => { void tokenHash; return t; });
+  const now = Date.now();
+  return rows.map(({ tokenHash, ...t }) => { void tokenHash; return { ...t, expired: t.expiresAt.getTime() < now }; });
 }
 
 export async function revokeMcpToken(actor: Actor, tokenId: string) {

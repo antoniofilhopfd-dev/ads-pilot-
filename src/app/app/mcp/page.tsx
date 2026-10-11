@@ -25,7 +25,7 @@ export default async function McpPage() {
           {tokens.length === 0 ? <div className="p-5"><EmptyState title="Nenhum token criado" /></div> : (
             <table className="mt-2 w-full text-sm"><thead><tr><Th>Nome</Th><Th>Escopos</Th><Th>Último uso</Th><Th>Expira</Th><Th>Estado</Th><Th right>Ações</Th></tr></thead>
               <tbody>{tokens.map((t) => {
-                const revoked = !!t.revokedAt, expired = t.expiresAt.getTime() < Date.now();
+                const revoked = !!t.revokedAt, expired = t.expired;
                 return (
                   <tr key={t.id}><Td className="font-medium">{t.name}<p className="font-mono text-xs font-normal text-muted">{t.tokenPrefix}…</p></Td>
                     <Td>{t.scopes.map((s) => <Badge key={s} tone={s === "write" ? "warn" : "neutral"}>{s === "write" ? "escrita" : "leitura"}</Badge>)}</Td>

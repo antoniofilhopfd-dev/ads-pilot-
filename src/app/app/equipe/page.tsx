@@ -1,5 +1,5 @@
 import { Form } from "@/components/form";
-import { Alert, Badge, Card, Field, PageHeader, Td, Th, btnCls, inputCls } from "@/components/ui";
+import { Alert, Badge, Card, Field, PageHeader, Td, Th, inputCls } from "@/components/ui";
 import { ROLES } from "@/db/schema";
 import { canActor } from "@/server/context";
 import { ROLE_LABEL } from "@/server/permissions";

@@ -22,7 +22,7 @@
 | Segredos no repositório | varredura do histórico git: nenhum token/chave | grep histórico |
 
 ## Lacunas conhecidas (não esconder)
-- **CSP sem `script-src`** (o Next injeta scripts inline); endurecer com nonce é trabalho futuro.
+- ~~CSP sem `script-src`~~ — **resolvido na Etapa 02 (v2): CSP com nonce em `src/proxy.ts`**. `style-src` ainda permite `unsafe-inline` (necessário ao Next/Tailwind).
 - Limitadores de frequência **em memória** (reiniciam com o processo; 1 instância).
 - Sem 2FA, sem verificação de e-mail, sem política de expiração de senha.
 - `email_outbox` guarda o link de reset em texto no banco (até haver SMTP): quem lê o banco poderia redefinir senhas.

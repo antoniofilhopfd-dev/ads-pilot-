@@ -84,7 +84,7 @@ export async function verifyPdf(buf: Buffer, r: Report): Promise<Verification> {
   const v = new V();
   if (buf.subarray(0, 5).toString() !== "%PDF-") { v.check(false, "", "Cabeçalho %PDF ausente"); return v.done(); }
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  let pages: string[] = [];
+  const pages: string[] = [];
   try {
     const doc = await pdfjs.getDocument({ data: new Uint8Array(buf), useSystemFonts: true, verbosity: 0 }).promise;
     for (let i = 1; i <= doc.numPages; i++) {

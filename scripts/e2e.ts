@@ -78,7 +78,7 @@ async function main() {
   await page.goto(`${BASE}/recuperar-senha`); await page.fill("#email", A.email); await page.click("button[type=submit]");
   await page.getByText("Se o e-mail estiver cadastrado").waitFor(); await shot("11-recuperar-enviado");
   const conn = await mysql.createConnection(process.env.DATABASE_URL!);
-  const [rows] = (await conn.query("SELECT body FROM email_outbox WHERE to_email=? ORDER BY created_at DESC LIMIT 1", [A.email])) as any;
+  const [rows] = (await conn.query("SELECT body FROM email_outbox WHERE to_email=? ORDER BY created_at DESC LIMIT 1", [A.email])) as [{ body: string }[], unknown];
   await conn.end();
   const link = /(http\S+)/.exec(rows[0].body)![1];
   await page.goto(link); await page.fill("#password", "NovaSenha2026x"); await page.fill("#confirm", "NovaSenha2026x"); await shot("12-redefinir");

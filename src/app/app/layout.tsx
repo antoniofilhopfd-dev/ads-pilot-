@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { ROLE_LABEL } from "@/server/permissions";
 import { requireActor } from "@/server/session";
 import { logoutAction, switchOrgAction } from "../actions";
@@ -20,13 +21,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { user, actor, orgs } = await requireActor();
   return (
     <div className="min-h-screen md:flex">
+      <a href="#conteudo" className="sr-only z-50 rounded-md bg-surface px-3 py-2 text-sm font-medium text-brand focus:not-sr-only focus:absolute focus:left-2 focus:top-2">Pular para o conteúdo</a>
       <aside className="bg-navy px-3 py-4 text-[#cbd5f5] md:fixed md:inset-y-0 md:w-56">
         <p className="px-2 pb-3 text-lg font-bold text-white md:pb-5">Ads<span className="text-[#a99af0]">Pilot</span></p>
         <nav aria-label="Principal" className="flex gap-1 overflow-x-auto md:block">
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className="block whitespace-nowrap rounded-md px-3 py-2 text-sm hover:bg-white/10 hover:text-white">
-              {n.label}
-            </Link>
+            <NavLink key={n.href} href={n.href}>{n.label}</NavLink>
           ))}
         </nav>
       </aside>
@@ -44,7 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Link href="/app/conta" className="text-sm text-muted hover:text-ink hover:underline">{user.name} · {ROLE_LABEL[actor.role]}</Link>
           <form action={logoutAction}><button className="rounded-md border border-line px-3 py-1.5 text-sm text-brand hover:bg-canvas">Sair</button></form>
         </header>
-        <main className="px-4 py-6 md:px-7">{children}</main>
+        <main id="conteudo" tabIndex={-1} className="px-4 py-6 md:px-7 focus:outline-none">{children}</main>
       </div>
     </div>
   );

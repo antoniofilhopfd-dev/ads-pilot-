@@ -25,7 +25,7 @@ export default async function Detalhe({ params, searchParams }: { params: Promis
   const conn = await getConnection(actor);
   const c = d.campaign, cur = d.currency, t = d.totals;
   const s = statusInfo(c.effectiveStatus);
-  const stale = !d.lastSyncedAt || Date.now() - d.lastSyncedAt.getTime() > 24 * 3_600_000;
+  const stale = d.stale;
   const avgDaily = t.spend !== null && t.days > 0 ? t.spend / t.days : null;
   const back = new URLSearchParams({ ...(f.clientId ? { cliente: f.clientId } : {}), ...(f.accountId ? { conta: f.accountId } : {}), dias: f.dias }).toString();
 

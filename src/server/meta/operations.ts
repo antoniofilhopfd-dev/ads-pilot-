@@ -143,7 +143,7 @@ export async function cancelOperation(actor: Actor, operationId: string) {
 export async function executeOperation(actor: Actor, operationId: string, input: { acknowledgeLargeChange?: boolean } = {}, opts: Opts = {}) {
   assertCan(actor, "campaigns.write");
   const now = opts.now ?? new Date();
-  let op = await getOp(actor, operationId);
+  const op = await getOp(actor, operationId);
 
   if (op.status === "succeeded" || op.status === "failed" || op.status === "ambiguous" || op.status === "cancelled" || op.status === "expired") return present(op);
   if (op.status === "executing") throw new AppError("conflict", "Esta operação já está em execução.");
