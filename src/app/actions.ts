@@ -1,0 +1,127 @@
+"use server";
+import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { AppError } from "@/lib/errors";
+import { requireActor, run, cookieOpts, ORG_COOKIE, SESSION_COOKIE, type ActionResult } from "@/server/session";
+import { createSession, destroySession, login, register, requestPasswordReset, resetPassword } from "@/server/services/auth";
+import { createClient, deleteClient, updateClient } from "@/server/services/clients";
+import { addMemberByEmail, changeMemberRole, removeMember, renameOrganization } from "@/server/services/organizations";
+import { listUserOrganizations } from "@/server/context";
+
+const str = (f: FormData, k: string) => String(f.get(k) ?? "");
+
+export async function loginAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  const r = await run(async () => {
+    const { token } = await login(str(f, "email"), str(f, "password"), randomUUID());
+    (await cookies()).set(SESSION_COOKIE, token, cookieOpts(14));
+  });
+  if (r?.error) return r;
+  redirect("/app");
+}
+
+export async function registerAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  const r = await run(async () => {
+    const { userId, organizationId } = await register(
+      { name: str(f, "name"), email: str(f, "email"), password: str(f, "password"), organizationName: str(f, "organizationName") },
+      randomUUID(),
+    );
+    const c = await cookies();
+    c.set(SESSION_COOKIE, await createSession(userId), cookieOpts(14));
+    c.set(ORG_COOKIE, organizationId, cookieOpts(365));
+  });
+  if (r?.error) return r;
+  redirect("/app");
+}
+
+export async function logoutAction() {
+  const c = await cookies();
+  await destroySession(c.get(SESSION_COOKIE)?.value);
+  c.delete(SESSION_COOKIE);
+  redirect("/login");
+}
+
+export async function forgotAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    await requestPasswordReset(str(f, "email"));
+    return { ok: "Se o e-mail estiver cadastrado, você receberá as instruções para redefinir a senha." };
+  });
+}
+
+export async function resetAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  const r = await run(async () => {
+    if (str(f, "password") !== str(f, "confirm")) throw new AppError("validation", "As senhas não conferem.");
+    await resetPassword(str(f, "token"), str(f, "password"));
+  });
+  if (r?.error) return r;
+  redirect("/login?redefinida=1");
+}
+
+export async function switchOrgAction(f: FormData) {
+  const { user } = await requireActor();
+  const orgId = str(f, "organizationId");
+  const orgs = await listUserOrganizations(user.id);
+  if (orgs.some((o) => o.id === orgId)) (await cookies()).set(ORG_COOKIE, orgId, cookieOpts(365));
+  redirect("/app");
+}
+
+export async function createClientAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await createClient(actor, { name: str(f, "name"), notes: str(f, "notes") || null });
+    revalidatePath("/app/clientes");
+    return { ok: "Cliente criado." };
+  });
+}
+
+export async function deleteClientAction(f: FormData) {
+  const { actor } = await requireActor();
+  await run(async () => deleteClient(actor, str(f, "clientId")));
+  revalidatePath("/app/clientes");
+}
+
+export async function updateClientAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await updateClient(actor, str(f, "clientId"), { name: str(f, "name"), notes: str(f, "notes") || null });
+    revalidatePath("/app/clientes");
+    return { ok: "Cliente atualizado." };
+  });
+}
+
+export async function addMemberAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await addMemberByEmail(actor, str(f, "email"), str(f, "role"));
+    revalidatePath("/app/equipe");
+    return { ok: "Membro adicionado." };
+  });
+}
+
+export async function changeRoleAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await changeMemberRole(actor, str(f, "userId"), str(f, "role"));
+    revalidatePath("/app/equipe");
+    return { ok: "Perfil atualizado." };
+  });
+}
+
+export async function removeMemberAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await removeMember(actor, str(f, "userId"));
+    revalidatePath("/app/equipe");
+    return { ok: "Membro removido." };
+  });
+}
+
+export async function renameOrgAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    await renameOrganization(actor, str(f, "name"));
+    revalidatePath("/app", "layout");
+    return { ok: "Organização atualizada." };
+  });
+}
