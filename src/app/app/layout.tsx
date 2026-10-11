@@ -10,6 +10,7 @@ const NAV = [
   { href: "/app/relatorios", label: "Relatórios" },
   { href: "/app/clientes", label: "Clientes" },
   { href: "/app/integracoes", label: "Integrações" },
+  { href: "/app/mcp", label: "Assistentes (MCP)" },
   { href: "/app/equipe", label: "Equipe" },
   { href: "/app/atividades", label: "Atividades" },
   { href: "/app/configuracoes", label: "Configurações" },

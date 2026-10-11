@@ -276,3 +276,30 @@ export async function deleteTemplateAction(f: FormData) {
   await run(async () => deleteTemplate(actor, str(f, "templateId")));
   revalidatePath("/app/relatorios");
 }
+
+// ───────────── Etapa 06: MCP ─────────────
+import { createMcpToken, revokeMcpToken } from "@/server/mcp/tokens";
+import { issueConfirmationCode } from "@/server/meta/operations";
+
+export async function createMcpTokenAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const { token } = await createMcpToken(actor, { name: str(f, "name"), scopes: f.getAll("scope").map(String), ttlDays: Number(str(f, "ttl")) });
+    revalidatePath("/app/mcp");
+    return { ok: `Token criado — copie agora, ele não será mostrado de novo: ${token}` };
+  });
+}
+
+export async function revokeMcpTokenAction(f: FormData) {
+  const { actor } = await requireActor();
+  await run(async () => revokeMcpToken(actor, str(f, "tokenId")));
+  revalidatePath("/app/mcp");
+}
+
+export async function issueCodeAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const { actor } = await requireActor();
+    const r = await issueConfirmationCode(actor, str(f, "operationId"));
+    return { ok: `Código de confirmação: ${r.code} (válido por 10 min, uso único). Informe-o ao assistente SOMENTE se você revisou a alteração acima.` };
+  });
+}

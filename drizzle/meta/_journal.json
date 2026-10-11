@@ -29,6 +29,13 @@
       "when": 1791731146729,
       "tag": "0003_previous_speedball",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1791731705588,
+      "tag": "0004_mean_ego",
+      "breakpoints": true
     }
   ]
 }

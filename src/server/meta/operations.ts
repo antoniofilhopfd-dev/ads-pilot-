@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { and, desc, eq, gt, lt } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
@@ -21,6 +21,7 @@ const MAX_DAILY_BUDGET = 1_000_000;
 
 type Op = typeof operations.$inferSelect;
 type Opts = { provider?: MetaProvider; now?: Date };
+type PrepOpts = Opts & { origin?: "web" | "mcp"; mcpTokenId?: string; clientRequestId?: string };
 
 const same = (a: number | null, b: number | null) => (a === null || b === null ? a === b : Math.abs(a - b) < 0.005);
 const snap = (s: CampaignRemoteState) => ({ status: s.status, effectiveStatus: s.effectiveStatus, dailyBudget: s.dailyBudget });
@@ -59,11 +60,19 @@ const prepareSchema = z.object({
   dailyBudget: z.number().finite().optional(),
 });
 
-export async function prepareOperation(actor: Actor, input: unknown, opts: Opts = {}) {
+export async function prepareOperation(actor: Actor, input: unknown, opts: PrepOpts = {}) {
   assertCan(actor, "campaigns.write");
   const p = prepareSchema.safeParse(input);
   if (!p.success) throw new AppError("validation", "Parâmetros inválidos.");
   const { campaignId, type, dailyBudget } = p.data;
+  // Deduplicação: o mesmo clientRequestId devolve a operação já preparada (sem criar outra).
+  if (opts.clientRequestId) {
+    const [dup] = await db.select().from(operations).where(and(eq(operations.organizationId, actor.organizationId), eq(operations.clientRequestId, opts.clientRequestId))).limit(1);
+    if (dup) {
+      if (dup.campaignId !== campaignId || dup.type !== type || dup.params.dailyBudget !== dailyBudget) throw new AppError("conflict", "Este clientRequestId já foi usado para outra operação.");
+      return { operationId: dup.id, campaign: "", type, before: dup.before, warnings: dup.warnings, requiresAcknowledgement: dup.warnings.some((w) => w.startsWith("Aumento")), expiresAt: dup.expiresAt, duplicate: true };
+    }
+  }
   const { c, a, conn } = await load(actor, campaignId);
   const writer = writerFor(conn, opts.provider);
 
@@ -92,9 +101,10 @@ export async function prepareOperation(actor: Actor, input: unknown, opts: Opts 
     id, organizationId: actor.organizationId, adAccountId: a.id, campaignId, clientId: a.clientId, type, mode: conn.mode,
     params: type === "set_daily_budget" ? { dailyBudget } : {}, before: snap(current), warnings, status: "prepared",
     createdBy: actor.userId, createdAt: now, expiresAt: new Date(now.getTime() + PREPARED_TTL_MS),
+    origin: opts.origin ?? "web", mcpTokenId: opts.mcpTokenId ?? null, clientRequestId: opts.clientRequestId ?? null,
   });
-  await audit({ organizationId: actor.organizationId, userId: actor.userId, clientId: a.clientId, action: "operation.prepare", objectType: "campaign", objectId: campaignId, before: snap(current), after: { type, dailyBudget }, result: "success", requestId: actor.requestId });
-  return { operationId: id, campaign: c.name, type, before: snap(current), warnings, requiresAcknowledgement: warnings.some((w) => w.startsWith("Aumento")), expiresAt: new Date(now.getTime() + PREPARED_TTL_MS) };
+  await audit({ organizationId: actor.organizationId, userId: actor.userId, clientId: a.clientId, action: "operation.prepare", objectType: "campaign", objectId: campaignId, before: snap(current), after: { type, dailyBudget, origin: opts.origin ?? "web" }, result: "success", requestId: actor.requestId });
+  return { operationId: id, campaign: c.name, type, before: snap(current), warnings, requiresAcknowledgement: warnings.some((w) => w.startsWith("Aumento")), expiresAt: new Date(now.getTime() + PREPARED_TTL_MS), duplicate: false };
 }
 
 async function readRemote(w: MetaWriter, acct: string, camp: string) {
@@ -223,4 +233,47 @@ export async function listOperations(actor: Actor, limit = 50) {
   await db.update(operations).set({ status: "expired", resultMessage: "Confirmação expirada." }).where(and(eq(operations.organizationId, actor.organizationId), eq(operations.status, "prepared"), lt(operations.expiresAt, new Date())));
   return db.select({ op: operations, campaignName: campaigns.name }).from(operations).innerJoin(campaigns, eq(campaigns.id, operations.campaignId))
     .where(eq(operations.organizationId, actor.organizationId)).orderBy(desc(operations.createdAt)).limit(limit);
+}
+
+
+// ── Confirmação humana para operações preparadas por assistente (MCP) ──
+// O assistente NÃO pode se autoconfirmar: o código só é gerado na interface web, por uma pessoa autenticada
+// (autor ou administrador), é mostrado uma vez, vale 10 min, tem 5 tentativas e é de uso único.
+const CODE_TTL_MS = 10 * 60_000;
+const MAX_CODE_ATTEMPTS = 5;
+const codeHash = (opId: string, code: string) => createHash("sha256").update(`${opId}:${code.replace(/[^A-Z0-9]/gi, "").toUpperCase()}`).digest("hex");
+
+export async function issueConfirmationCode(actor: Actor, operationId: string, now = new Date()) {
+  assertCan(actor, "campaigns.write");
+  const op = await getOp(actor, operationId);
+  if (op.origin !== "mcp") throw new AppError("conflict", "Só operações preparadas por assistente usam código de confirmação.");
+  if (op.status !== "prepared") throw new AppError("conflict", "A operação não está mais aguardando confirmação.");
+  if (op.expiresAt.getTime() < now.getTime()) throw new AppError("conflict", "A operação expirou. Peça ao assistente para preparar novamente.");
+  if (op.createdBy !== actor.userId && actor.role !== "admin") throw new AppError("forbidden", "Apenas quem autorizou o assistente (ou um administrador) pode gerar o código.");
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem caracteres ambíguos
+  const raw = Array.from(randomBytes(8), (b) => alphabet[b % alphabet.length]).join("");
+  await db.update(operations).set({ confirmationCodeHash: codeHash(op.id, raw), confirmationExpiresAt: new Date(now.getTime() + CODE_TTL_MS), confirmationAttempts: 0 }).where(eq(operations.id, op.id));
+  await audit({ organizationId: actor.organizationId, userId: actor.userId, clientId: op.clientId, action: "operation.confirmation_code_issued", objectType: "campaign", objectId: op.campaignId, result: "success", requestId: actor.requestId });
+  return { code: `${raw.slice(0, 4)}-${raw.slice(4)}`, expiresAt: new Date(now.getTime() + CODE_TTL_MS) };
+}
+
+export async function executeWithConfirmationCode(actor: Actor, operationId: string, code: string, input: { acknowledgeLargeChange?: boolean } = {}, opts: Opts = {}) {
+  assertCan(actor, "campaigns.write");
+  const now = opts.now ?? new Date();
+  const op = await getOp(actor, operationId);
+  if (op.status !== "prepared") return executeOperation(actor, operationId, input, opts); // devolve o resultado já guardado (idempotente)
+  if (!op.confirmationCodeHash || !op.confirmationExpiresAt || op.confirmationExpiresAt.getTime() < now.getTime())
+    throw new AppError("forbidden", "Sem confirmação humana válida. Peça ao usuário para gerar um código de confirmação no AdsPilot (Operações) e informá-lo.");
+  // conta a tentativa ANTES de comparar (impede força bruta)
+  const [att] = await db.update(operations).set({ confirmationAttempts: op.confirmationAttempts + 1 }).where(and(eq(operations.id, op.id), eq(operations.confirmationAttempts, op.confirmationAttempts), lt(operations.confirmationAttempts, MAX_CODE_ATTEMPTS)));
+  if (att.affectedRows !== 1) {
+    await db.update(operations).set({ confirmationCodeHash: null }).where(eq(operations.id, op.id));
+    throw new AppError("forbidden", "Muitas tentativas de código. Gere um novo código no AdsPilot.");
+  }
+  const given = Buffer.from(codeHash(op.id, String(code)), "hex"), real = Buffer.from(op.confirmationCodeHash, "hex");
+  if (!timingSafeEqual(given, real)) throw new AppError("forbidden", "Código de confirmação incorreto.");
+  // uso único: consome o código de forma atômica
+  const [used] = await db.update(operations).set({ confirmationCodeHash: null }).where(and(eq(operations.id, op.id), eq(operations.confirmationCodeHash, op.confirmationCodeHash)));
+  if (used.affectedRows !== 1) throw new AppError("conflict", "Código já utilizado.");
+  return executeOperation(actor, operationId, input, opts);
 }

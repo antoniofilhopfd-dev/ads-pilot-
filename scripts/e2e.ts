@@ -25,7 +25,7 @@ async function main() {
   await page.goto(`${BASE}/cadastro`);
   await page.fill("#name", A.name); await page.fill("#organizationName", A.org); await page.fill("#email", A.email); await page.fill("#password", "curta");
   await page.click("button[type=submit]");
-  await page.getByRole("alert").waitFor(); await shot("02-cadastro-erro");
+  await page.getByText("A senha deve ter pelo menos 10 caracteres.").waitFor(); await shot("02-cadastro-erro");
   await page.fill("#password", A.pw); await page.click("button[type=submit]");
   await page.waitForURL(/\/app$/); await shot("03-painel-vazio"); log("cadastro + login automático");
 

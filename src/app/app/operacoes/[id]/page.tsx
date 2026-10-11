@@ -8,7 +8,7 @@ import { brl } from "@/lib/metrics";
 import { getOperation } from "@/server/meta/operations";
 import { can } from "@/server/permissions";
 import { requireActor } from "@/server/session";
-import { cancelOperationAction, executeOperationAction, reconcileOperationAction } from "../../../actions";
+import { cancelOperationAction, executeOperationAction, issueCodeAction, reconcileOperationAction } from "../../../actions";
 
 export const metadata = { title: "Operação — AdsPilot" };
 
@@ -37,6 +37,14 @@ export default async function OperacaoPage({ params }: { params: Promise<{ id: s
       </Card>
       {op.warnings.filter((w) => !w.startsWith("SIMULAÇÃO")).map((w, i) => <div key={i} className="mb-3 max-w-2xl"><Alert tone="error">{w}</Alert></div>)}
 
+      {op.origin === "mcp" && <div className="mb-4 max-w-2xl"><Alert tone="info"><strong>Preparada por um assistente de IA (MCP).</strong> O assistente não pode executar sozinho: você precisa revisar a alteração e gerar o código abaixo, ou confirmar aqui mesmo.</Alert></div>}
+      {op.origin === "mcp" && op.status === "prepared" && canWrite && (
+        <Card className="mb-4 max-w-2xl">
+          <h2 className="mb-2 text-sm font-semibold">Autorizar o assistente</h2>
+          <Form action={issueCodeAction} submit="Gerar código para o assistente" variant="secondary"><input type="hidden" name="operationId" value={op.id} /></Form>
+          <p className="mt-2 text-xs text-muted">O código vale 10 minutos, tem 5 tentativas e é de uso único. Só o autor ou um administrador pode gerá-lo.</p>
+        </Card>
+      )}
       {op.status === "prepared" && canWrite && (
         <Card className="max-w-2xl">
           <p className="mb-3 text-sm">Expira às {op.expiresAt.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", timeStyle: "short" })}. Autor: você ou um administrador pode confirmar.</p>

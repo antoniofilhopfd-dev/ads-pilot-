@@ -299,8 +299,15 @@ export const operations = mysqlTable(
     executedAt: datetime("executed_at", { mode: "date", fsp: 3 }),
     verifiedAt: datetime("verified_at", { mode: "date", fsp: 3 }),
     resultMessage: varchar("result_message", { length: 400 }),
+    // Etapa 06: operações preparadas por assistente (MCP) só executam pelo MCP com um código que o HUMANO gera na interface web.
+    origin: mysqlEnum("origin", ["web", "mcp"]).notNull().default("web"),
+    mcpTokenId: varchar("mcp_token_id", { length: 36 }),
+    clientRequestId: varchar("client_request_id", { length: 64 }), // deduplica "preparar" repetido
+    confirmationCodeHash: varchar("confirmation_code_hash", { length: 64 }),
+    confirmationExpiresAt: datetime("confirmation_expires_at", { mode: "date", fsp: 3 }),
+    confirmationAttempts: int("confirmation_attempts").notNull().default(0),
   },
-  (t) => [index("operations_org_idx").on(t.organizationId, t.createdAt), index("operations_campaign_idx").on(t.campaignId)],
+  (t) => [index("operations_org_idx").on(t.organizationId, t.createdAt), index("operations_campaign_idx").on(t.campaignId), uniqueIndex("operations_client_req_uq").on(t.organizationId, t.clientRequestId)],
 );
 
 // ───────────── Etapa 05: relatórios ─────────────
@@ -335,4 +342,26 @@ export const reportExports = mysqlTable(
     createdAt: createdAt(),
   },
   (t) => [index("report_exports_org_idx").on(t.organizationId, t.createdAt)],
+);
+
+// ───────────── Etapa 06: MCP ─────────────
+export const MCP_SCOPES = ["read", "write"] as const;
+
+// Token de acesso MCP: vinculado a UM usuário e UMA organização. Só o hash é guardado; o valor aparece uma única vez.
+export const mcpTokens = mysqlTable(
+  "mcp_tokens",
+  {
+    id: id(),
+    organizationId: varchar("organization_id", { length: 36 }).notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 80 }).notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    tokenPrefix: varchar("token_prefix", { length: 16 }).notNull(), // só para o usuário reconhecer o token na lista
+    scopes: json("scopes").$type<("read" | "write")[]>().notNull(),
+    expiresAt: datetime("expires_at", { mode: "date", fsp: 3 }).notNull(),
+    lastUsedAt: datetime("last_used_at", { mode: "date", fsp: 3 }),
+    revokedAt: datetime("revoked_at", { mode: "date", fsp: 3 }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("mcp_tokens_hash_uq").on(t.tokenHash), index("mcp_tokens_org_idx").on(t.organizationId)],
 );
