@@ -17,7 +17,7 @@ export default async function Diagnosticos() {
       {list.length === 0 ? <EmptyState title="Nada a destacar">Nenhuma campanha com variação relevante e amostra suficiente. Campanhas com poucos dados aparecem aqui como “amostra pequena”.</EmptyState> : (
         <div className="space-y-4">{list.map((c) => (
           <Card key={c.campaign.id}>
-            <h2 className="font-semibold"><Link className="text-brand hover:underline" href={`/app/campanhas/${c.campaign.id}`}>{c.campaign.name}</Link> <span className="text-xs font-normal text-muted">{c.campaign.account}</span></h2>
+            <h2 className="font-semibold"><Link className="text-brand underline" href={`/app/campanhas/${c.campaign.id}`}>{c.campaign.name}</Link> <span className="text-xs font-normal text-muted">{c.campaign.account}</span></h2>
             <div className="mt-2 space-y-3">{c.items.filter((i) => i.id !== "estavel").map((d) => (
               <div key={d.id} className="rounded-md border border-line p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2"><Badge tone={TONE[d.tone]}>{d.id.replace(/_/g, " ")}</Badge><Badge>Confiança: {d.confidence}</Badge></div>

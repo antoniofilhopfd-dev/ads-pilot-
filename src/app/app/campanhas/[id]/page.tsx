@@ -75,7 +75,7 @@ export default async function Detalhe({ params, searchParams }: { params: Promis
           <h2 className="mb-2 text-sm font-semibold">Diagnóstico (regras, últimos 7 dias)</h2>
           <ul className="space-y-2 text-sm">{diag.items.map((x) => (
             <li key={x.id}><Badge tone={({ info: "neutral", warn: "warn", danger: "danger", ok: "ok" } as const)[x.tone]}>{x.id.replace(/_/g, " ")}</Badge> {x.observation}{x.hypothesis && <span className="block text-muted">{x.hypothesis}</span>}<span className="block text-muted">Recomendação: {x.recommendation} (confiança {x.confidence})</span></li>))}</ul>
-          <p className="mt-2 text-xs text-muted"><Link href="/app/diagnosticos" className="text-brand hover:underline">Todos os diagnósticos</Link> · hipóteses não são fatos.</p>
+          <p className="mt-2 text-xs text-muted"><Link href="/app/diagnosticos" className="text-brand underline">Todos os diagnósticos</Link> · hipóteses não são fatos.</p>
         </Card>)}
       <div className="mb-4 grid gap-3 lg:grid-cols-2">
         <Card><h2 className="mb-2 text-sm font-semibold">Gasto por dia</h2><LineChart data={d.daily.map((x) => ({ date: x.date, value: x.spend }))} label="Gasto por dia" format={(v) => brl0(v, cur)} /></Card>

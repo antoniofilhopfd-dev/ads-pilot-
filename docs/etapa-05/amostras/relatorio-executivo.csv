@@ -1,7 +1,7 @@
 ﻿Campanha,Conta,Cliente,Status,Objetivo,Gasto,Impressões,Cliques,Resultados,Custo por resultado,CTR (%),CPC,CPM,ROAS,Moeda,Início do período,Fim do período,Última sincronização,Origem
-Remarketing – Catálogo,[DEMO] Loja Exemplo — Conta principal,Loja Exemplo,ACTIVE,OUTCOME_SALES,5631.75,399206,8385,366,15.39,2.1,0.67,14.11,4.2,BRL,2026-09-12,2026-10-11,2026-10-11T22:33:45.112Z,DEMONSTRAÇÃO (dados simulados)
-Leads – Black Friday,[DEMO] Loja Exemplo — Conta principal,Loja Exemplo,ACTIVE,OUTCOME_LEADS,3414.47,241353,4100,203,16.82,1.7,0.83,14.15,,BRL,2026-09-12,2026-10-11,2026-10-11T22:33:45.112Z,DEMONSTRAÇÃO (dados simulados)
-Agendamentos – Consulta,[DEMO] Clínica Vida — Captação,,ACTIVE,OUTCOME_LEADS,2342.85,167453,3182,107,21.9,1.9,0.74,13.99,,BRL,2026-09-12,2026-10-11,2026-10-11T22:33:45.112Z,DEMONSTRAÇÃO (dados simulados)
-Tráfego – Blog,[DEMO] Loja Exemplo — Conta principal,Loja Exemplo,LEARNING_LIMITED,OUTCOME_TRAFFIC,1370.27,98799,1187,1247,1.1,1.2,1.15,13.87,,BRL,2026-09-12,2026-10-11,2026-10-11T22:33:45.112Z,DEMONSTRAÇÃO (dados simulados)
-Reconhecimento – Marca,[DEMO] Loja Exemplo — Conta principal,Loja Exemplo,PAUSED,OUTCOME_AWARENESS,,,,,,,,,,BRL,2026-09-12,2026-10-11,2026-10-11T22:33:45.112Z,DEMONSTRAÇÃO (dados simulados)
-Conversão – Lançamento,[DEMO] Clínica Vida — Captação,,WITH_ISSUES,OUTCOME_SALES,,,,,,,,,,BRL,2026-09-12,2026-10-11,2026-10-11T22:33:45.112Z,DEMONSTRAÇÃO (dados simulados)
+Remarketing – Catálogo,[DEMO] Loja Exemplo — Conta principal,Loja Exemplo,ACTIVE,OUTCOME_SALES,5631.75,399206,8385,366,15.39,2.1,0.67,14.11,4.2,BRL,2026-09-12,2026-10-11,2026-10-11T22:59:08.240Z,DEMONSTRAÇÃO (dados simulados)
+Leads – Black Friday,[DEMO] Loja Exemplo — Conta principal,Loja Exemplo,ACTIVE,OUTCOME_LEADS,3414.47,241353,4100,203,16.82,1.7,0.83,14.15,,BRL,2026-09-12,2026-10-11,2026-10-11T22:59:08.240Z,DEMONSTRAÇÃO (dados simulados)
+Agendamentos – Consulta,[DEMO] Clínica Vida — Captação,,ACTIVE,OUTCOME_LEADS,2342.85,167453,3182,107,21.9,1.9,0.74,13.99,,BRL,2026-09-12,2026-10-11,2026-10-11T22:59:08.240Z,DEMONSTRAÇÃO (dados simulados)
+Tráfego – Blog,[DEMO] Loja Exemplo — Conta principal,Loja Exemplo,LEARNING_LIMITED,OUTCOME_TRAFFIC,1370.27,98799,1187,1247,1.1,1.2,1.15,13.87,,BRL,2026-09-12,2026-10-11,2026-10-11T22:59:08.240Z,DEMONSTRAÇÃO (dados simulados)
+Reconhecimento – Marca,[DEMO] Loja Exemplo — Conta principal,Loja Exemplo,PAUSED,OUTCOME_AWARENESS,,,,,,,,,,BRL,2026-09-12,2026-10-11,2026-10-11T22:59:08.240Z,DEMONSTRAÇÃO (dados simulados)
+Conversão – Lançamento,[DEMO] Clínica Vida — Captação,,WITH_ISSUES,OUTCOME_SALES,,,,,,,,,,BRL,2026-09-12,2026-10-11,2026-10-11T22:59:08.240Z,DEMONSTRAÇÃO (dados simulados)
