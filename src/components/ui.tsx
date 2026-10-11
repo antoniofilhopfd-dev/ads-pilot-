@@ -18,7 +18,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 
 const TONES = {
   ok: "bg-[#e3f5ee] text-ok",
-  warn: "bg-[#fbf1dc] text-[#9a6c10]",
+  warn: "bg-[#fbf1dc] text-[#7a5200]",
   danger: "bg-[#fbe5e5] text-danger",
   neutral: "bg-[#eef0f5] text-muted",
 } as const;
@@ -49,12 +49,12 @@ export function EmptyState({ title, children, action }: { title: string; childre
 export const inputCls =
   "w-full rounded-md border border-line bg-surface px-3 py-2 text-sm placeholder:text-muted/70 focus:border-violet";
 
-export function Field({ label, name, type = "text", autoComplete, defaultValue, hint, required = true }: { label: string; name: string; type?: string; autoComplete?: string; defaultValue?: string; hint?: string; required?: boolean }) {
+export function Field({ label, name, id = name, type = "text", autoComplete, defaultValue, hint, required = true }: { label: string; name: string; id?: string; type?: string; autoComplete?: string; defaultValue?: string; hint?: string; required?: boolean }) {
   return (
     <div>
-      <label htmlFor={name} className="mb-1 block text-sm font-medium">{label}</label>
-      <input id={name} name={name} type={type} autoComplete={autoComplete} defaultValue={defaultValue} required={required} aria-describedby={hint ? `${name}-hint` : undefined} className={inputCls} />
-      {hint && <p id={`${name}-hint`} className="mt-1 text-xs text-muted">{hint}</p>}
+      <label htmlFor={id} className="mb-1 block text-sm font-medium">{label}</label>
+      <input id={id} name={name} type={type} autoComplete={autoComplete} defaultValue={defaultValue} required={required} aria-describedby={hint ? `${id}-hint` : undefined} className={inputCls} />
+      {hint && <p id={`${id}-hint`} className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }

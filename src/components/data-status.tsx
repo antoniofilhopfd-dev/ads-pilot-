@@ -13,7 +13,7 @@ export function SyncBadge({ lastSyncedAt, stale, hasConnection }: { lastSyncedAt
   if (!hasConnection) return null;
   const when = lastSyncedAt?.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stale ? "bg-[#fbf1dc] text-[#9a6c10]" : "bg-[#e3f5ee] text-ok"}`}>
+    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${stale ? "bg-[#fbf1dc] text-[#7a5200]" : "bg-[#e3f5ee] text-ok"}`}>
       {lastSyncedAt ? `${stale ? "Desatualizado · " : ""}Última sincronização: ${when}` : "Ainda não sincronizado"}
     </span>
   );

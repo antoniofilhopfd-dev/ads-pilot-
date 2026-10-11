@@ -185,3 +185,35 @@ export async function syncAllAction(_: ActionResult, __: FormData): Promise<Acti
     return bad ? { error: `${bad} de ${res.length} conta(s) com falha. Veja o histórico.` } : { ok: `${res.length} conta(s) sincronizada(s).` };
   });
 }
+
+// ───────────── Conta e LGPD ─────────────
+import { changePassword, deleteAccount, updateProfile } from "@/server/services/account";
+import { requireUser } from "@/server/session";
+
+export async function updateProfileAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const user = await requireUser();
+    await updateProfile(user.id, str(f, "name"));
+    revalidatePath("/app", "layout");
+    return { ok: "Nome atualizado." };
+  });
+}
+
+export async function changePasswordAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  return run(async () => {
+    const user = await requireUser();
+    if (str(f, "password") !== str(f, "confirm")) throw new AppError("validation", "As senhas não conferem.");
+    await changePassword(user.id, str(f, "current"), str(f, "password"), (await cookies()).get(SESSION_COOKIE)?.value);
+    return { ok: "Senha alterada. Os outros dispositivos foram desconectados." };
+  });
+}
+
+export async function deleteAccountAction(_: ActionResult, f: FormData): Promise<ActionResult> {
+  const r = await run(async () => {
+    const user = await requireUser();
+    await deleteAccount(user.id, str(f, "password"));
+    (await cookies()).delete(SESSION_COOKIE);
+  });
+  if (r?.error) return r;
+  redirect("/login");
+}

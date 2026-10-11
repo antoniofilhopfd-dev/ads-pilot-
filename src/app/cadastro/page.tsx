@@ -18,6 +18,7 @@ export default async function CadastroPage() {
         <Field label="E-mail" name="email" type="email" autoComplete="email" />
         <Field label="Senha" name="password" type="password" autoComplete="new-password" hint="Mínimo de 10 caracteres, com letras e números." />
       </Form>
+      <p className="mt-4 text-xs text-muted">Ao criar a conta você concorda com os <a className="underline" href="/termos">Termos</a> e a <a className="underline" href="/privacidade">Política de Privacidade</a> (minutas).</p>
     </AuthShell>
   );
 }

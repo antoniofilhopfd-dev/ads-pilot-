@@ -8,10 +8,10 @@
   --color-surface: #ffffff;
   --color-line: #e4e8f0;
   --color-ink: #202938;
-  --color-muted: #69738a;
-  --color-ok: #15966a;
+  --color-muted: #5a6478; /* paleta original #69738A (4,4:1) não atinge WCAG AA 4,5:1 sobre o fundo; escurecido */
+  --color-ok: #0f7a56; /* original #15966A; texto sobre fundo claro precisa de 4,5:1 */
   --color-warn: #d99a22;
-  --color-danger: #dc4545;
+  --color-danger: #c53030; /* original #DC4545; idem */
   --font-sans: var(--font-inter), system-ui, sans-serif;
 }
 

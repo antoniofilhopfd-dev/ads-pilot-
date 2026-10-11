@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <button className="rounded-md border border-line px-2 py-1.5 text-sm text-brand hover:bg-canvas">Trocar</button>
           </form>
           <span className="flex-1" />
-          <span className="text-sm text-muted">{user.name} · {ROLE_LABEL[actor.role]}</span>
+          <Link href="/app/conta" className="text-sm text-muted hover:text-ink hover:underline">{user.name} · {ROLE_LABEL[actor.role]}</Link>
           <form action={logoutAction}><button className="rounded-md border border-line px-3 py-1.5 text-sm text-brand hover:bg-canvas">Sair</button></form>
         </header>
         <main className="px-4 py-6 md:px-7">{children}</main>
